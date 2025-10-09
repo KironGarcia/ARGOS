@@ -1,0 +1,746 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2025-01-09T00:00:00+00:00
+
+====== ESP32 Technical Reference ======
+Created Thursday 09 January 2025
+
+===== Overview =====
+
+The ESP32 is a powerful, low-cost microcontroller with integrated WiFi and Bluetooth, making it ideal for IoT projects. In the ARGOS project, it serves as the secondary brain handling real-time sensor processing and peripheral control.
+
+===== Technical Specifications =====
+
+==== Processor ====
+* **CPU**: Xtensa dual-core 32-bit LX6 microprocessor
+* **Clock speed**: Up to 240 MHz (adjustable)
+* **Architecture**: Harvard architecture with separate instruction and data buses
+* **SRAM**: 520 KB (internal)
+* **ROM**: 448 KB (boot and core functions)
+* **Flash**: 4 MB typical (external SPI flash)
+
+==== Wireless Connectivity ====
+* **WiFi**: 802.11 b/g/n (2.4 GHz)
+* **Bluetooth**: v4.2 BR/EDR and BLE (Bluetooth Low Energy)
+* **Range**: 100-150 meters (open air)
+* **Antenna**: Integrated PCB antenna or external connector
+
+==== Power Specifications ====
+* **Operating voltage**: 3.0V to 3.6V (3.3V typical)
+* **Input voltage**: 5V via USB or Vin pin (with onboard regulator)
+* **Current consumption**:
+  - Active (WiFi): 160-260 mA
+  - Active (BT): 100-130 mA
+  - Modem sleep: 20-30 mA
+  - Light sleep: 0.8 mA
+  - Deep sleep: 10-150 µA
+* **Power modes**: Active, Modem-sleep, Light-sleep, Deep-sleep, Hibernation
+
+==== GPIO and Peripherals ====
+* **GPIO pins**: 34 programmable pins
+* **ADC**: 18 channels, 12-bit resolution (0-4095)
+* **DAC**: 2 channels, 8-bit resolution
+* **Touch sensors**: 10 capacitive touch pins
+* **PWM**: 16 channels (LED Control)
+* **UART**: 3 interfaces
+* **SPI**: 4 interfaces
+* **I2C**: 2 interfaces
+* **I2S**: 2 interfaces (audio)
+* **CAN**: 1 controller (ISO 11898-1)
+
+==== Operating Conditions ====
+* **Operating temperature**: -40°C to +85°C
+* **Storage temperature**: -40°C to +150°C
+* **Humidity**: 5% to 95% non-condensing
+
+===== Pinout Reference =====
+
+==== Common ESP32 Development Board Pinout ====
+
+{{~/path/to/esp32-pinout-image.png}}
+
+**Note**: Add pinout image here after obtaining or generating one
+
+==== Pin Categories ====
+
+===== Power Pins =====
+* **3.3V**: Output from onboard regulator (max 600mA)
+* **5V (VIN)**: Input for external power (5-12V typical)
+* **GND**: Ground (multiple pins available)
+* **EN (ENABLE)**: Enable pin (pull HIGH to enable, LOW to disable)
+
+===== GPIO Pins (Input/Output) =====
+* **GPIO 0-39**: General purpose I/O
+* **Strapping pins**: GPIO 0, 2, 5, 12, 15 (special boot mode functions)
+* **Input-only pins**: GPIO 34, 35, 36, 39 (no internal pull-up/pull-down)
+
+===== ADC (Analog to Digital Converter) =====
+* **ADC1**: GPIO 32, 33, 34, 35, 36, 39 (6 channels)
+* **ADC2**: GPIO 0, 2, 4, 12, 13, 14, 15, 25, 26, 27 (10 channels)
+* **Note**: ADC2 pins cannot be used when WiFi is active
+
+===== DAC (Digital to Analog Converter) =====
+* **DAC1**: GPIO 25
+* **DAC2**: GPIO 26
+
+===== Touch Sensors =====
+* **Touch 0-9**: GPIO 4, 0, 2, 15, 13, 12, 14, 27, 33, 32
+
+===== Communication Interfaces =====
+
+==== UART (Serial Communication) ====
+* **UART0** (USB programming):
+  - TX: GPIO 1
+  - RX: GPIO 3
+* **UART1**: GPIO 9, 10 (internal flash, avoid)
+* **UART2** (recommended for projects):
+  - TX: GPIO 17
+  - RX: GPIO 16
+
+==== SPI (Serial Peripheral Interface) ====
+* **VSPI** (default):
+  - MISO: GPIO 19
+  - MOSI: GPIO 23
+  - CLK: GPIO 18
+  - CS: GPIO 5
+* **HSPI**:
+  - MISO: GPIO 12
+  - MOSI: GPIO 13
+  - CLK: GPIO 14
+  - CS: GPIO 15
+
+==== I2C (Inter-Integrated Circuit) ====
+* **Default pins** (configurable):
+  - SDA: GPIO 21
+  - SCL: GPIO 22
+* **Note**: Any GPIO can be configured as I2C
+
+===== Pins to AVOID or Use Carefully =====
+
+==== Strapping Pins (Boot Configuration) ====
+* **GPIO 0**: Must be HIGH during boot (connected to button for programming)
+* **GPIO 2**: Must be LOW during boot (often has onboard LED)
+* **GPIO 5**: Boot mode selection
+* **GPIO 12**: Flash voltage selection (MTDI)
+* **GPIO 15**: Boot mode selection
+
+**Recommendation**: Avoid using these pins unless necessary, or ensure they have correct states during boot.
+
+==== Input-Only Pins ====
+* **GPIO 34, 35, 36, 39**: Cannot be used as outputs, no pull-up/pull-down resistors
+
+==== Internal Flash Pins ====
+* **GPIO 6-11**: Connected to internal flash memory
+* **DO NOT USE**: Will cause boot failures
+
+==== Pins with Special Functions ====
+* **GPIO 1, 3**: UART0 (USB serial, avoid if using serial monitor)
+
+===== Initial Setup and Configuration =====
+
+==== Hardware Requirements ====
+* ESP32 development board (ESP32-WROOM-32 or similar)
+* USB cable (data-capable, not just charging)
+* Computer with USB port
+* Optional: External power supply (5V 1A minimum)
+
+==== Software Installation ====
+
+===== Option 1: Arduino IDE (Recommended for Beginners) =====
+
+==== Step 1: Install Arduino IDE ====
+{{{code: lang="sh" linenumbers="True"
+# Download Arduino IDE from official website
+# https://www.arduino.cc/en/software
+
+# Linux installation (Debian/Ubuntu)
+wget https://downloads.arduino.cc/arduino-ide/arduino-ide_latest_Linux_64bit.AppImage
+chmod +x arduino-ide_*_Linux_64bit.AppImage
+./arduino-ide_*_Linux_64bit.AppImage
+}}}
+
+==== Step 2: Add ESP32 Board Support ====
+{{{code: lang="text" linenumbers="True"
+1. Open Arduino IDE
+2. Go to File → Preferences
+3. In "Additional Board Manager URLs" add:
+   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+4. Click OK
+5. Go to Tools → Board → Boards Manager
+6. Search for "esp32"
+7. Install "esp32 by Espressif Systems"
+8. Wait for installation to complete
+}}}
+
+==== Step 3: Select Board and Port ====
+{{{code: lang="text" linenumbers="True"
+1. Connect ESP32 via USB
+2. Go to Tools → Board → ESP32 Arduino
+3. Select your board (usually "ESP32 Dev Module")
+4. Go to Tools → Port
+5. Select the port (Linux: /dev/ttyUSB0 or /dev/ttyACM0)
+}}}
+
+==== Step 4: Test with Blink Example ====
+{{{code: lang="cpp" linenumbers="True"
+// File → Examples → 01.Basics → Blink
+// Change LED_BUILTIN to 2 for most ESP32 boards
+
+void setup() {
+  pinMode(2, OUTPUT);  // GPIO 2 has onboard LED
+}
+
+void loop() {
+  digitalWrite(2, HIGH);
+  delay(1000);
+  digitalWrite(2, LOW);
+  delay(1000);
+}
+}}}
+
+===== Option 2: ESP-IDF (Advanced Users) =====
+
+==== Installation ====
+{{{code: lang="sh" linenumbers="True"
+# Install prerequisites (Debian/Ubuntu)
+sudo apt-get install git wget flex bison gperf python3 python3-pip \
+  python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev \
+  dfu-util libusb-1.0-0
+
+# Clone ESP-IDF repository
+mkdir -p ~/esp
+cd ~/esp
+git clone --recursive https://github.com/espressif/esp-idf.git
+
+# Install ESP-IDF
+cd esp-idf
+./install.sh esp32
+
+# Add to shell profile
+echo '. ~/esp/esp-idf/export.sh' >> ~/.bashrc
+source ~/.bashrc
+}}}
+
+===== Option 3: PlatformIO (Professional Development) =====
+{{{code: lang="sh" linenumbers="True"
+# Install PlatformIO Core
+curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py -o get-platformio.py
+python3 get-platformio.py
+
+# Or install via pip
+pip install platformio
+
+# Initialize new project
+pio init --board esp32dev
+
+# Build and upload
+pio run --target upload
+}}}
+
+===== Common Problems and Solutions =====
+
+==== Problem 1: ESP32 Not Detected by Computer ====
+
+===== Symptoms =====
+* No serial port appears in Tools → Port
+* "Device not recognized" error
+* dmesg shows USB errors
+
+===== Solutions =====
+{{{code: lang="sh" linenumbers="True"
+# Check USB cable (must be data cable, not just power)
+# Try different USB port
+
+# Linux: Check if device is detected
+lsusb | grep -i "CP210\|CH340\|FT232"
+
+# Install USB drivers
+# CP2102 driver (most common)
+sudo apt-get install linux-modules-extra-$(uname -r)
+
+# CH340 driver (alternative)
+sudo apt-get install ch341-uart-dkms
+
+# Add user to dialout group (Linux)
+sudo usermod -a -G dialout $USER
+# Logout and login for changes to take effect
+}}}
+
+==== Problem 2: Upload Failed / Timeout ====
+
+===== Symptoms =====
+* "Failed to connect to ESP32"
+* "Timed out waiting for packet header"
+* Upload gets stuck at "Connecting..."
+
+===== Solutions =====
+{{{code: lang="text" linenumbers="True"
+Solution 1: Manual Boot Mode
+1. Press and HOLD the "BOOT" button on ESP32
+2. Click "Upload" in Arduino IDE
+3. Wait until "Connecting..." appears
+4. Release "BOOT" button
+5. Upload should proceed
+
+Solution 2: Check Upload Speed
+1. Go to Tools → Upload Speed
+2. Try lower speed (115200 instead of 921600)
+
+Solution 3: Disable Hardware Flow Control
+1. Some ESP32 boards need RTS/DTR disabled
+2. Tools → Upload Speed → 115200
+3. Use "esptool.py" with --no-stub option
+
+Solution 4: Check USB Power
+1. Some computers don't provide enough USB power
+2. Use external 5V power supply via VIN pin
+3. Keep USB connected for programming only
+}}}
+
+==== Problem 3: Brownout Detector Triggered ====
+
+===== Symptoms =====
+* "Brownout detector was triggered" in serial monitor
+* ESP32 resets randomly
+* Program works intermittently
+
+===== Solutions =====
+{{{code: lang="cpp" linenumbers="True"
+// Temporary fix: Disable brownout detector (not recommended)
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+
+void setup() {
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);  // Disable brownout
+  // Rest of your code
+}
+
+// Better solution: Provide adequate power
+// - Use quality USB cable
+// - Use external 5V 1A+ power supply
+// - Add 10µF capacitor between VIN and GND
+// - Reduce WiFi transmission power
+}}}
+
+==== Problem 4: WiFi Connection Issues ====
+
+===== Symptoms =====
+* WiFi.begin() doesn't connect
+* WiFi constantly disconnects
+* Weak signal strength
+
+===== Solutions =====
+{{{code: lang="cpp" linenumbers="True"
+#include <WiFi.h>
+
+// Increase connection timeout
+WiFi.begin(ssid, password);
+int timeout = 0;
+while (WiFi.status() != WL_CONNECTED && timeout < 20) {
+  delay(500);
+  Serial.print(".");
+  timeout++;
+}
+
+// Adjust WiFi power mode
+WiFi.setTxPower(WIFI_POWER_19_5dBm);  // Maximum power
+
+// Static IP (faster connection)
+IPAddress local_IP(192, 168, 1, 100);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+WiFi.config(local_IP, gateway, subnet);
+WiFi.begin(ssid, password);
+
+// Disable WiFi sleep mode
+WiFi.setSleep(false);
+}}}
+
+==== Problem 5: ADC Readings Incorrect or Noisy ====
+
+===== Symptoms =====
+* ADC values fluctuate wildly
+* Maximum value is ~4095 but minimum is not 0
+* Non-linear response
+
+===== Solutions =====
+{{{code: lang="cpp" linenumbers="True"
+// Set ADC resolution (default is 12-bit)
+analogReadResolution(12);  // 0-4095
+
+// Set ADC attenuation (voltage range)
+// ADC_0db: 0-1.1V
+// ADC_2_5db: 0-1.5V
+// ADC_6db: 0-2.2V (default)
+// ADC_11db: 0-3.3V (linear up to ~2.6V only)
+analogSetAttenuation(ADC_11db);
+
+// Take multiple samples and average
+int readADC(int pin, int samples = 10) {
+  long sum = 0;
+  for(int i = 0; i < samples; i++) {
+    sum += analogRead(pin);
+    delay(10);
+  }
+  return sum / samples;
+}
+
+// Avoid using ADC2 pins if WiFi is active
+// Use ADC1 pins: 32, 33, 34, 35, 36, 39
+}}}
+
+==== Problem 6: Serial Monitor Shows Garbage Characters ====
+
+===== Symptoms =====
+* Random symbols instead of text
+* Partial readable text mixed with garbage
+* Boot messages unreadable
+
+===== Solutions =====
+{{{code: lang="text" linenumbers="True"
+Solution 1: Check Baud Rate
+1. ESP32 boot messages are at 115200 baud
+2. Set Serial Monitor to 115200 baud
+3. Match baud rate in code: Serial.begin(115200);
+
+Solution 2: Add Small Delay After Serial.begin()
+Serial.begin(115200);
+delay(1000);  // Wait for serial to initialize
+Serial.println("ESP32 Ready!");
+
+Solution 3: Clear Serial Buffer
+while(Serial.available()) Serial.read();
+
+Solution 4: Check USB Cable Quality
+- Poor quality cables can cause data corruption
+- Try a different cable
+}}}
+
+===== Precautions and Best Practices =====
+
+==== Electrical Safety ====
+
+===== Voltage Levels =====
+* **Never apply more than 3.6V to GPIO pins** (3.3V logic level)
+* **5V tolerant pins**: None (all are 3.3V maximum)
+* **Use level shifters** for 5V devices (Arduino, sensors)
+* **Protect ADC inputs**: Maximum 3.3V (use voltage divider for higher voltages)
+
+===== Power Supply =====
+* **Minimum current**: 500 mA for stable operation
+* **Recommended**: 1A or higher for WiFi/Bluetooth usage
+* **Avoid laptop USB ports**: Often insufficient current
+* **Use quality USB cables**: Thin cables cause voltage drops
+* **Add decoupling capacitors**: 10µF + 100nF near VCC/GND
+
+==== GPIO Usage Guidelines ====
+
+===== Safe Pins for General Use =====
+* **Recommended GPIO**: 4, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33
+* **Input only**: 34, 35, 36, 39 (no pull-up/down resistors)
+* **With care**: 0, 2, 12, 15 (strapping pins)
+
+===== Pin Configuration Rules =====
+{{{code: lang="cpp" linenumbers="True"
+// Always set pinMode before using a pin
+pinMode(GPIO_PIN, INPUT);   // or OUTPUT, INPUT_PULLUP, INPUT_PULLDOWN
+
+// Use internal pull-up/pull-down resistors
+pinMode(GPIO_PIN, INPUT_PULLUP);    // ~45kΩ pull-up
+pinMode(GPIO_PIN, INPUT_PULLDOWN);  // ~45kΩ pull-down
+
+// Protect outputs with current-limiting resistors
+// LED example: 220Ω resistor for 15mA current
+}}}
+
+==== Flash Memory Management ====
+
+===== Wear Leveling =====
+* Flash memory has limited write cycles (~100,000)
+* **Avoid frequent writes** to SPIFFS/LittleFS
+* **Use EEPROM library** for small persistent data
+* **Buffer writes**: Collect data in RAM, write periodically
+
+===== Non-Volatile Storage (NVS) =====
+{{{code: lang="cpp" linenumbers="True"
+#include <Preferences.h>
+
+Preferences preferences;
+
+void setup() {
+  preferences.begin("my-app", false);  // namespace, read-only
+  int counter = preferences.getInt("counter", 0);
+  counter++;
+  preferences.putInt("counter", counter);
+  preferences.end();
+}
+}}}
+
+==== WiFi Best Practices ====
+
+===== Connection Management =====
+* **Use static IP**: Faster reconnection
+* **Implement auto-reconnect**: WiFi can drop unexpectedly
+* **Handle connection failures**: Timeout and retry logic
+* **Reduce transmission power** if range is adequate (saves power)
+
+===== Power Consumption =====
+{{{code: lang="cpp" linenumbers="True"
+// Disable WiFi when not needed
+WiFi.disconnect(true);  // Disconnect and turn off WiFi
+WiFi.mode(WIFI_OFF);
+
+// Enable WiFi sleep mode
+WiFi.setSleep(true);  // Automatic light sleep between beacons
+
+// Use deep sleep for long idle periods
+esp_sleep_enable_timer_wakeup(60 * 1000000);  // 60 seconds
+esp_deep_sleep_start();
+}}}
+
+==== Bluetooth Considerations ====
+
+===== Classic Bluetooth vs BLE =====
+* **Classic Bluetooth**: Higher power, larger data transfer
+* **BLE (Bluetooth Low Energy)**: Lower power, smaller packets
+* **Cannot use both simultaneously**: Choose one mode
+
+===== Memory Management =====
+* Bluetooth uses significant RAM (~50-100 KB)
+* Reduce buffer sizes if memory is tight
+* Monitor free heap: `ESP.getFreeHeap()`
+
+==== Debugging and Development ====
+
+===== Serial Debugging =====
+{{{code: lang="cpp" linenumbers="True"
+// Use different serial ports for debugging
+Serial.begin(115200);   // USB serial
+Serial2.begin(9600, SERIAL_8N1, 16, 17);  // RX=16, TX=17
+
+// Formatted output
+Serial.printf("Value: %d, Voltage: %.2f\n", value, voltage);
+
+// Check if serial is connected
+if(Serial) {
+  Serial.println("Serial is ready");
+}
+}}}
+
+===== Watchdog Timer =====
+{{{code: lang="cpp" linenumbers="True"
+// Disable watchdog timer during long operations
+#include "esp_task_wdt.h"
+
+void setup() {
+  esp_task_wdt_init(30, true);  // 30 second timeout
+  esp_task_wdt_add(NULL);       // Add current task
+}
+
+void loop() {
+  // Long operation
+  esp_task_wdt_reset();  // Reset watchdog
+  // More operations
+}
+}}}
+
+===== ARGOS Project Specific Configuration =====
+
+==== Pin Assignment for ARGOS ====
+
+{{{code: lang="text" linenumbers="True"
+ESP32 Pin Allocation for ARGOS Project:
+
+Communication:
+├── UART2 to Raspberry Pi
+│   ├── TX: GPIO 17
+│   └── RX: GPIO 16
+
+Sensors:
+├── HC-SR04 Ultrasonic
+│   ├── TRIG: GPIO 5
+│   └── ECHO: GPIO 18
+├── IMU (MPU6050/MPU9250) - I2C
+│   ├── SDA: GPIO 21
+│   └── SCL: GPIO 22
+
+Displays & Indicators:
+├── LCD 1602 - I2C (shared with IMU)
+│   ├── SDA: GPIO 21
+│   └── SCL: GPIO 22
+├── Status LED
+│   └── GPIO 2 (onboard LED)
+
+Actuators:
+├── Servo Motor 1 (Steering)
+│   └── PWM: GPIO 25
+├── Servo Motor 2 (Antenna Expression)
+│   └── PWM: GPIO 26
+
+Audio System:
+├── Microphone (Analog)
+│   └── ADC: GPIO 34
+├── Speaker (via DAC + Amplifier)
+│   └── DAC: GPIO 25
+
+CAN Bus (MCP2515) - SPI:
+├── MISO: GPIO 19
+├── MOSI: GPIO 23
+├── CLK: GPIO 18
+└── CS: GPIO 15
+
+Reserved/Unused:
+├── GPIO 0: Boot button (strapping pin)
+├── GPIO 2: Onboard LED
+└── GPIO 4, 12, 13, 14, 27, 32, 33: Available for expansion
+}}}
+
+==== Power Configuration for ARGOS ====
+* **Power source**: 4x AA rechargeable batteries (1.2V each = 4.8V)
+* **Voltage regulation**: Onboard AMS1117 regulator (5V → 3.3V)
+* **Expected current**: 100-200 mA average, 300 mA peak
+* **Battery life**: 6-8 hours (2500mAh AA batteries)
+
+===== Recommended Libraries for ARGOS =====
+
+==== Communication ====
+* **ArduinoJson**: JSON parsing for data exchange with Raspberry Pi
+* **PubSubClient**: MQTT protocol (if using WiFi communication)
+
+==== Sensors ====
+* **NewPing**: Ultrasonic sensor library (HC-SR04)
+* **MPU6050** or **MPU9250**: IMU sensor library
+* **Wire.h**: I2C communication (built-in)
+
+==== Display ====
+* **LiquidCrystal_I2C**: 1602 LCD display control
+* **Adafruit GFX**: Graphics library (if using OLED alternative)
+
+==== Audio ====
+* **ESP32Servo**: Servo motor control
+* **driver/dac.h**: DAC output for audio (built-in)
+* **driver/i2s.h**: I2S audio interface (advanced)
+
+==== Utilities ====
+* **Preferences**: Non-volatile storage
+* **SPIFFS** or **LittleFS**: File system
+* **WiFi.h**: WiFi connectivity (built-in)
+
+===== Quick Start Code Template =====
+
+{{{code: lang="cpp" linenumbers="True"
+#include <Wire.h>
+#include <WiFi.h>
+#include <ArduinoJson.h>
+
+// Pin definitions
+#define UART_TX 17
+#define UART_RX 16
+#define TRIG_PIN 5
+#define ECHO_PIN 18
+#define SERVO_STEERING 25
+#define SERVO_ANTENNA 26
+
+// Communication with Raspberry Pi
+HardwareSerial RaspberrySerial(2);  // UART2
+
+void setup() {
+  // Initialize serial for debugging
+  Serial.begin(115200);
+  Serial.println("ARGOS ESP32 Initializing...");
+  
+  // Initialize UART to Raspberry Pi
+  RaspberrySerial.begin(9600, SERIAL_8N1, UART_RX, UART_TX);
+  
+  // Initialize I2C
+  Wire.begin(21, 22);  // SDA, SCL
+  
+  // Initialize GPIO
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(2, OUTPUT);  // Onboard LED
+  
+  Serial.println("ARGOS ESP32 Ready!");
+}
+
+void loop() {
+  // Main loop will handle:
+  // - Sensor reading
+  // - Data transmission to Raspberry Pi
+  // - Servo control based on Pi commands
+  // - LCD display updates
+  // - Audio feedback
+  
+  delay(100);
+}
+
+// Function to send JSON data to Raspberry Pi
+void sendToRaspberryPi(String dataType, float value) {
+  StaticJsonDocument<200> doc;
+  doc["type"] = dataType;
+  doc["value"] = value;
+  doc["timestamp"] = millis();
+  
+  String output;
+  serializeJson(doc, output);
+  RaspberrySerial.println(output);
+}
+
+// Function to receive commands from Raspberry Pi
+void receiveFromRaspberryPi() {
+  if (RaspberrySerial.available()) {
+    String command = RaspberrySerial.readStringUntil('\n');
+    StaticJsonDocument<200> doc;
+    deserializeJson(doc, command);
+    
+    String action = doc["action"];
+    // Process action...
+  }
+}
+}}}
+
+===== Resources and Documentation =====
+
+==== Official Documentation ====
+* **Espressif**: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/
+* **Arduino ESP32**: https://docs.espressif.com/projects/arduino-esp32/en/latest/
+* **ESP32 Datasheet**: https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf
+
+==== Community Resources ====
+* **Random Nerd Tutorials**: https://randomnerdtutorials.com/projects-esp32/
+* **ESP32.com Forum**: https://www.esp32.com/
+* **Reddit r/esp32**: https://www.reddit.com/r/esp32/
+* **Arduino Forum ESP32**: https://forum.arduino.cc/c/hardware/esp32/
+
+==== Example Projects ====
+* **ESP32 + Raspberry Pi Communication**: https://randomnerdtutorials.com/raspberry-pi-esp32-communicate/
+* **ESP32 Voice Recognition**: https://github.com/atomic14/esp32-voice-assistant
+* **ESP32 Motor Control**: https://randomnerdtutorials.com/esp32-dc-motor-l298n-motor-driver-control-speed-direction/
+
+===== Next Steps for ARGOS Integration =====
+
+==== Phase 1: Basic Setup ====
+* ✅ Study ESP32 pinout and capabilities
+* 🔄 Purchase ESP32 development board
+* 🔄 Install Arduino IDE with ESP32 support
+* 🔄 Test basic GPIO and serial communication
+
+==== Phase 2: Peripheral Testing ====
+* Test HC-SR04 sensor with ESP32
+* Test I2C communication with LCD
+* Test UART communication with Raspberry Pi
+* Verify power consumption with batteries
+
+==== Phase 3: Integration ====
+* Migrate sensor code from Raspberry Pi to ESP32
+* Implement bidirectional UART protocol
+* Create emotional state machine
+* Integrate servo antenna control
+
+===== Status =====
+* Documentation complete
+* Pin allocation planned
+* Libraries identified
+* Ready for hardware procurement and initial testing
+
+

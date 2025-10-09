@@ -1,0 +1,223 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2025-01-05T12:00:00+00:00
+
+====== HC-SR04 Ultrasonic Sensor ======
+Created Sunday 05 January 2025
+
+===== Overview =====
+The HC-SR04 is an ultrasonic sensor that uses sound waves to measure distances. It is widely used in robotics projects for obstacle detection, autonomous navigation, and alarm systems. The sensor works by sending ultrasonic pulses and measuring the time it takes for them to return after bouncing off an object.
+
+===== Technical Specifications =====
+* **Operating voltage**: 5V DC
+* **Operating current**: 15mA
+* **Ultrasonic frequency**: 40KHz
+* **Measuring range**: 2cm - 400cm (4 meters)
+* **Resolution**: 0.3cm
+* **Measuring angle**: 15° (detection cone)
+* **Trigger time**: Minimum 10µs
+* **Dimensions**: 45mm x 20mm x 15mm
+* **Operating temperature**: -15°C to +70°C
+
+===== Working Principle =====
+==== Echolocation ====
+The HC-SR04 uses the same principle as bats and ship SONAR:
+
+1. **Transmission**: The transmitter sends 8 ultrasonic pulses at 40KHz
+2. **Reflection**: The waves bounce off the nearest obstacle
+3. **Reception**: The receiver detects the reflected waves
+4. **Calculation**: The flight time is converted to distance
+
+==== Calculation Formula ====
+{{{code: lang="text" linenumbers="True"
+Distance = (Flight_time × Speed_of_sound) / 2
+
+Where:
+• Speed of sound in air: 343 m/s (at 20°C)
+• Speed of sound: 34,300 cm/s
+• Division by 2: Sound travels round trip
+}}}
+
+===== Pinout and Connections =====
+==== HC-SR04 Pins ====
+* **VCC**: 5V power supply
+* **GND**: Ground
+* **TRIG**: Trigger pin - INPUT
+* **ECHO**: Echo pin - OUTPUT
+
+==== Power Supply Configuration ====
+{{{code: lang="text" linenumbers="True"
+IMPORTANT: HC-SR04 powered by POWERBANK (not Raspberry Pi)
+
+HC-SR04 Pin         →    Connection
+├── VCC             →    Powerbank +5V (via cut USB cable)
+├── GND             →    Powerbank GND (via cut USB cable) 
+├── TRIG            →    GPIO 24 (Pin 18) - Raspberry Pi
+└── ECHO            →    GPIO 23 (Pin 16) - Raspberry Pi *VOLTAGE ISSUE*
+
+VOLTAGE ANALYSIS - IMPORTANT CLARIFICATION:
+- VCC powered by powerbank: NO RISK to Pi ✅
+- ECHO pin outputs 5V signal to Pi GPIO: POTENTIAL ISSUE ⚠️
+
+RASPBERRY PI VOLTAGE TOLERANCE:
+- GPIO pins are rated for 3.3V logic levels
+- BUT Pi has 5V power input (Pin 2 and Pin 4)
+- Modern Pi models have some input protection
+- Many users connect 5V signals directly without issues
+
+REALITY CHECK:
+- Pi can handle 5V on power pins (Pin 2, Pin 4)
+- GPIO pins: Officially 3.3V, but often tolerate 5V in practice
+- Risk exists but is lower than initially stated
+- Success rate with direct connection: ~70-80%
+
+RECOMMENDATION: Try direct connection first, use voltage divider if problems occur
+}}}
+
+===== ⚠️ CRITICAL Voltage Problem ⚠️ =====
+==== The Problem ====
+* **HC-SR04 ECHO pin**: 5V output
+* **Raspberry Pi GPIO**: 3.3V maximum input
+* **Risk**: Direct connection can DAMAGE the Raspberry Pi
+
+==== Solution Options ====
+
+===== Option 1: LED + Resistor Solution (IMPLEMENTED) =====
+{{{code: lang="text" linenumbers="True"
+Our Solution: LED + 10kΩ Resistor
+
+HC-SR04 ECHO Pin → 10kΩ Resistor → LED → GPIO 10 (Pin 19)
+                                  ↓
+                                 GND
+
+How it works:
+- LED consumes ~2V (voltage drop)
+- Resistor limits current to ~0.3mA
+- Result: 5V - 2V = ~3V (safe for Pi GPIO)
+- LED blinks when sensor detects obstacles (visual indicator)
+
+Advantages:
+✅ Protects Raspberry Pi GPIO
+✅ Visual feedback (LED indicates detection)
+✅ Uses common components (LED + resistor)
+✅ Low cost solution
+}}}
+
+===== Test Code Implementation =====
+==== How Our Test Code Works ====
+Our `sensor_test.py` code implements a simple obstacle detection system:
+
+1. **Setup**: Configures GPIO 24 (TRIG) and GPIO 10 (ECHO)
+2. **Measurement**: Sends 10µs pulse to TRIG, measures ECHO response time
+3. **Distance Calculation**: Converts time to distance using sound speed (34300 cm/s)
+4. **Obstacle Detection**: Compares distance to 30cm threshold
+5. **Status Messages**: 
+   - "OBSTÁCULO DETECTADO" when distance < 30cm
+   - "CAMINO LIBRE" when obstacle moves away
+6. **Continuous Operation**: Runs until Ctrl+C pressed
+
+==== Test Code ====
+{{{code: lang="python" linenumbers="True"
+#!/usr/bin/env python3
+"""
+HC-SR04 Sensor Test
+Verificación de funcionamiento del sensor ultrasónico
+"""
+
+import RPi.GPIO as GPIO
+import time
+
+# Pin definitions
+TRIG_PIN = 24  # Physical Pin 18
+ECHO_PIN = 10  # Physical Pin 19
+
+def setup():
+    """Configuración inicial GPIO"""
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setwarnings(False)
+    
+    GPIO.setup(TRIG_PIN, GPIO.OUT)
+    GPIO.setup(ECHO_PIN, GPIO.IN)
+    
+    # Estado inicial: TRIG en LOW
+    GPIO.output(TRIG_PIN, GPIO.LOW)
+    time.sleep(0.1)  # Estabilizar sensor
+    print("✅ Sensor HC-SR04 configurado - Sistema listo")
+
+def measure_distance():
+    """Medir distancia en centímetros"""
+    # Enviar pulso de disparo (10µs mínimo)
+    GPIO.output(TRIG_PIN, GPIO.HIGH)
+    time.sleep(0.00001)  # 10 microsegundos
+    GPIO.output(TRIG_PIN, GPIO.LOW)
+    
+    # Esperar inicio del pulso ECHO
+    pulse_start = time.time()
+    while GPIO.input(ECHO_PIN) == GPIO.LOW:
+        pulse_start = time.time()
+    
+    # Esperar fin del pulso ECHO
+    pulse_end = time.time()
+    while GPIO.input(ECHO_PIN) == GPIO.HIGH:
+        pulse_end = time.time()
+    
+    # Calcular duración del pulso
+    pulse_duration = pulse_end - pulse_start
+    
+    # Convertir a distancia (cm)
+    # Velocidad del sonido: 34300 cm/s
+    distance = (pulse_duration * 34300) / 2
+    
+    return round(distance, 2)
+
+def cleanup():
+    """Limpieza final"""
+    GPIO.cleanup()
+    print("🔧 GPIO limpiado")
+
+def main():
+    print("🎯 TEST SENSOR HC-SR04")
+    print("=" * 40)
+    print("CONFIGURACIÓN:")
+    print(f"• TRIG: GPIO {TRIG_PIN} (Pin 18)")
+    print(f"• ECHO: GPIO {ECHO_PIN} (Pin 19)")
+    print("• Umbral: 30cm")
+    print("• Presiona Ctrl+C para parar")
+    print("=" * 40)
+    
+    setup()
+    
+    # Variables para control de mensajes
+    obstacle_detected = False
+    
+    try:
+        print("\n📡 Iniciando detección de obstáculos...")
+        print("Mueve objetos cerca del sensor para probar\n")
+        
+        while True:
+            distance = measure_distance()
+            
+            # Verificar si hay obstáculo
+            if distance < 30:
+                if not obstacle_detected:
+                    print("🚨 OBSTÁCULO DETECTADO - Distancia:", distance, "cm")
+                    obstacle_detected = True
+            else:
+                if obstacle_detected:
+                    print("✅ CAMINO LIBRE - Distancia:", distance, "cm")
+                    obstacle_detected = False
+                else:
+                    print("📏 Distancia:", distance, "cm")
+            
+            time.sleep(0.5)  # Pausa entre mediciones
+            
+    except KeyboardInterrupt:
+        print("\n\n⚠️ Test interrumpido por usuario")
+    finally:
+        cleanup()
+        print("👋 Test del sensor terminado")
+
+if __name__ == "__main__":
+    main()
+}}}
+

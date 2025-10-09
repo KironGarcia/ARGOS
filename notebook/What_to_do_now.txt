@@ -1,0 +1,221 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2025-01-05T08:00:00+00:00
+
+====== What to do now ======
+Created Sunday 05 January 2025
+
+===== Current Situation Summary =====
+
+Motor control system completely non-responsive despite all logical components appearing functional. Time-critical resolution needed today.
+
+==== Confirmed Working Components ====
+* ✅ **Raspberry Pi GPIO**: Blinky test successful with same jumper cables
+* ✅ **Jumper Cable Integrity**: LED control works perfectly through same cables
+* ✅ **Motors Physical Condition**: Tested individually before connection - both rotate
+* ✅ **L298N Power Reception**: LED indicator ON when powered
+* ✅ **Power Supply**: 5V stable from powerbank, GND connected via cut cable
+* ✅ **Code Logic**: Pin assignments verified, control signals correct
+
+==== EUREKA! ====
+**Root Cause Discovered: L298N Power Configuration Issue**
+
+The mystery has been solved! The problem was not in the components themselves, but in the **L298N module power configuration**. The 5V_EN jumper was causing a power supply conflict that prevented the logic circuitry from receiving adequate voltage.
+
+===== The L298N 5V_EN Jumper Problem =====
+
+**What Was Happening:**
+* L298N module had 5V_EN jumper **INSTALLED** (factory default)
+* With jumper installed, +5V pin becomes an **OUTPUT** (not input)
+* Internal 78M05 regulator tries to generate 5V from +12V input
+* **Critical Issue**: 5V input to +12V pin is insufficient for regulator (needs minimum 6-7V)
+* Result: Logic circuitry receives inadequate power despite LED being ON
+
+**Why LED Was ON But Nothing Worked:**
+* Power LED connects directly to +12V input (before regulator)
+* LED lights up with 5V input, creating false indication of proper power
+* Internal logic circuits (controlling IN1-IN4) starved of proper 5V supply
+* GPIO signals from Raspberry Pi were being ignored by unpowered logic
+
+===== The Solution: Dual Power Supply Configuration =====
+
+**Step 1: Remove 5V_EN Jumper**
+* Physically remove the small jumper cap from 5V_EN pins
+* This changes +5V pin from OUTPUT to INPUT mode
+
+**Step 2: Dual Power Connection**
+
+{{{code: lang="text" linenumbers="True"
+Powerbank 5V (+) → L298N "+5V" pin    (Logic Power Supply)
+Powerbank 5V (+) → L298N "+12V" pin   (Motor Power Supply) 
+Powerbank GND (-) → L298N "GND" pin    (Common Ground)
+}}}
+
+**Why This Works:**
+* +5V pin directly powers internal logic circuits (IN1-IN4 processing)
+* +12V pin powers H-bridge motor drivers (OUT1-OUT4 outputs)  
+* Both circuits receive clean, stable 5V power
+* No voltage regulator conflicts or insufficient input voltage
+
+===== Verification Results =====
+
+**Power Measurements:**
+* +5V pin: 5.0V (logic circuits powered)
+* +12V pin: 5.0V (motor circuits powered)
+* OUT1-OUT4: ~3.0V output (5V input minus 2V internal drop)
+
+**Functional Test:**
+* GPIO signals IN1-IN4 now properly recognized
+* Motor outputs OUT1-OUT4 providing adequate drive voltage
+* Motors responding correctly to direction and speed commands
+
+===== Common Ground Connection Issue =====
+
+**Problem:** Raspberry Pi and L298N need common ground reference, but single AWG 26 jumper cable insufficient for total current (~1A).
+
+**Solution:** Multiple GND pins connection for current distribution and safety.
+
+{{{code: lang="text" linenumbers="True"
+Cable USB cortado (GND) → 3 jumpers paralelos:
+                          ├── Jumper 1 → Pi Pin 6 (GND)
+                          ├── Jumper 2 → Pi Pin 9 (GND)  
+                          └── Jumper 3 → Pi Pin 14 (GND)
+}}}
+
+**Why This Works:** All Raspberry Pi GND pins internally connected to same ground plane. Using multiple pins distributes current load safely.
+
+===== Final GPIO Connections =====
+
+**Raspberry Pi to L298N Pin Mapping:**
+
+| Raspberry Pi Pin                                                      | GPIO | L298N Pin | Function            |     |
+|-----------------------------------------------------------------------|------|-----------|---------------------|-----|
+| Pin 11                                                                | 17   | IN1       | Motor A Direction 1 |     |
+| Pin 13                                                                | 27   | IN2       | Motor A Direction 2 |     |
+| Pin 15                                                                | 22   | IN3       | Motor B Direction 1 |     |
+| Pin 16                                                                | 23   | IN4       | Motor B Direction 2 |     |
+| Pin 6                                                                 | GND  | GND       | Common Ground 1     |     |
+| Pin 9                                                                 | GND  | GND       | Common Ground 2     |     |
+| Pin 14                                                                | GND  | GND       | Common Ground 3     | }}} |
+|                                                                       |      |           |                     |     |
+| **Power Connections:**                                                |      |           |                     |     |
+| * Powerbank 5V (+) → L298N "+5V" pin (Logic Power)                    |      |           |                     |     |
+| * Powerbank 5V (+) → L298N "+12V" pin (Motor Power)                   |      |           |                     |     |
+| * Powerbank GND (-) → USB cable cut point → 3x jumpers to Pi GND pins |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| **Configuration Notes:**                                              |      |           |                     |     |
+| * ENA/ENB jumpers: INSTALLED (motors always enabled at full speed)    |      |           |                     |     |
+| * 5V_EN jumper: REMOVED (dual power supply mode)                      |      |           |                     |     |
+| * Motor B polarity: Software-inverted for same direction as Motor A   |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| ===== Working Motor Test Code =====                                   |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| {{{code: lang="python" linenumbers="True"                             |      |           |                     |     |
+| #!/usr/bin/env python3                                                |      |           |                     |     |
+| """                                                                   |      |           |                     |     |
+| PRUEBA MAESTRA - L298N Motor Test                                     |      |           |                     |     |
+| Configuración: Jumpers ENA/ENB + Alimentación Dual 5V                 |      |           |                     |     |
+| """                                                                   |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| import RPi.GPIO as GPIO                                               |      |           |                     |     |
+| import time                                                           |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| # Pines de dirección únicamente (ENA/ENB con jumpers)                 |      |           |                     |     |
+| IN1 = 17  # Physical Pin 11 - Motor A                                 |      |           |                     |     |
+| IN2 = 27  # Physical Pin 13 - Motor A                                 |      |           |                     |     |
+| IN3 = 22  # Physical Pin 15 - Motor B                                 |      |           |                     |     |
+| IN4 = 23  # Physical Pin 16 - Motor B                                 |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| def setup():                                                          |      |           |                     |     |
+| """Configuración inicial GPIO"""                                      |      |           |                     |     |
+| GPIO.setmode(GPIO.BCM)                                                |      |           |                     |     |
+| GPIO.setwarnings(False)                                               |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| # Configurar solo pines de dirección                                  |      |           |                     |     |
+| GPIO.setup([IN1, IN2, IN3, IN4], GPIO.OUT)                            |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| # Estado inicial: motores parados                                     |      |           |                     |     |
+| GPIO.output([IN1, IN2, IN3, IN4], GPIO.LOW)                           |      |           |                     |     |
+| print("✅ GPIO configurado - Sistema listo")                           |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| def forward():                                                        |      |           |                     |     |
+| """Ambos motores ADELANTE"""                                          |      |           |                     |     |
+| print("🚗 ADELANTE - Motor A + Motor B")                               |      |           |                     |     |
+| GPIO.output(IN1, GPIO.HIGH)  # Motor A adelante                       |      |           |                     |     |
+| GPIO.output(IN2, GPIO.LOW)                                            |      |           |                     |     |
+| GPIO.output(IN3, GPIO.LOW)   # Motor B adelante (INVERTIDO)           |      |           |                     |     |
+| GPIO.output(IN4, GPIO.HIGH)                                           |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| def backward():                                                       |      |           |                     |     |
+| """Ambos motores ATRÁS"""                                             |      |           |                     |     |
+| print("🔄 ATRÁS - Motor A + Motor B")                                  |      |           |                     |     |
+| GPIO.output(IN1, GPIO.LOW)   # Motor A atrás                          |      |           |                     |     |
+| GPIO.output(IN2, GPIO.HIGH)                                           |      |           |                     |     |
+| GPIO.output(IN3, GPIO.HIGH)  # Motor B atrás (INVERTIDO)              |      |           |                     |     |
+| GPIO.output(IN4, GPIO.LOW)                                            |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| def stop():                                                           |      |           |                     |     |
+| """Parar todos los motores"""                                         |      |           |                     |     |
+| print("⏹️ STOP - Todos los motores")                                  |      |           |                     |     |
+| GPIO.output([IN1, IN2, IN3, IN4], GPIO.LOW)                           |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| def cleanup():                                                        |      |           |                     |     |
+| """Limpieza final"""                                                  |      |           |                     |     |
+| GPIO.cleanup()                                                        |      |           |                     |     |
+| print("🔧 GPIO limpiado")                                              |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| def main():                                                           |      |           |                     |     |
+| print("🎯 PRUEBA MAESTRA L298N")                                       |      |           |                     |     |
+| print("=" * 50)                                                       |      |           |                     |     |
+| print("CONFIGURACIÓN ACTUAL:")                                        |      |           |                     |     |
+| print(f"• IN1: GPIO {IN1} (Pin 11) - Motor A")                        |      |           |                     |     |
+| print(f"• IN2: GPIO {IN2} (Pin 13) - Motor A")                        |      |           |                     |     |
+| print(f"• IN3: GPIO {IN3} (Pin 15) - Motor B")                        |      |           |                     |     |
+| print(f"• IN4: GPIO {IN4} (Pin 16) - Motor B")                        |      |           |                     |     |
+| print("• ENA/ENB: JUMPERS (velocidad máxima)")                        |      |           |                     |     |
+| print("• Alimentación: DUAL 5V (jumper 5V_EN removido)")              |      |           |                     |     |
+| print("=" * 50)                                                       |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| setup()                                                               |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| try:                                                                  |      |           |                     |     |
+| input("\n🎬 Presiona ENTER para iniciar PRUEBA MAESTRA...")            |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| print("\n🔍 FASE 1: Test ADELANTE (5 segundos)")                       |      |           |                     |     |
+| forward()                                                             |      |           |                     |     |
+| time.sleep(5)                                                         |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| print("\n🔍 FASE 2: PARAR (2 segundos)")                               |      |           |                     |     |
+| stop()                                                                |      |           |                     |     |
+| time.sleep(2)                                                         |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| print("\n🔍 FASE 3: Test ATRÁS (5 segundos)")                          |      |           |                     |     |
+| backward()                                                            |      |           |                     |     |
+| time.sleep(5)                                                         |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| print("\n🔍 FASE 4: PARAR final")                                      |      |           |                     |     |
+| stop()                                                                |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| print("\n🎉 ¡PRUEBA MAESTRA COMPLETADA!")                              |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| except KeyboardInterrupt:                                             |      |           |                     |     |
+| print("\n\n⚠️ Test interrumpido por usuario")                         |      |           |                     |     |
+| finally:                                                              |      |           |                     |     |
+| stop()                                                                |      |           |                     |     |
+| cleanup()                                                             |      |           |                     |     |
+| print("👋 Prueba maestra terminada")                                   |      |           |                     |     |
+|                                                                       |      |           |                     |     |
+| if __name__ == "__main__":                                            |      |           |                     |     |
+| main()                                                                |      |           |                     |     |
+
+===== Success Confirmation =====
+
+**Test Results:**
+* ✅ Motor A (OUT1-OUT2): Rotating correctly in both directions
+* ✅ Motor B (OUT3-OUT4): Rotating correctly after software polarity inversion
+* ✅ Both motors synchronized movement forward and backward
+* ✅ GPIO control responsive and stable
+* ✅ Power supply configuration working properly
+
+**System Status:** FULLY FUNCTIONAL - Ready for next development phase
+

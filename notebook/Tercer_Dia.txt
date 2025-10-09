@@ -1,0 +1,398 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2025-01-04T16:59:00+00:00
+
+====== Tercer Dia ======
+Created Saturday 04 January 2025
+
+===== Problems in Paradise =====
+
+The Raspberry Pi Zero W suddenly stopped responding to SSH connections. The Pi powers on correctly (green LED active), SD card appears intact, but no network connectivity via WiFi or USB gadget interface.
+
+==== Symptoms Observed ====
+* ssh raspi → No route to host
+* ssh pi@192.168.0.2 (iotrac) → No route to host  
+* ssh pi@10.247.104.100 (KironWifi) → Connection timeout
+* ssh pi@192.168.7.2 (USB gadget) → Destination Host Unreachable
+* Raspberry Pi LED: Green light ON (system powered and booting)
+* SD card: No physical damage, files accessible from PC
+
+===== Exhaustive SD Card Analysis =====
+
+==== Step 1: Device Detection ====
+{{{code: lang="sh" linenumbers="True"
+# Identify SD card device and partitions
+lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT,MODEL
+sudo blkid /dev/sda1 /dev/sda2
+
+# Results:
+# sda1: bootfs (FAT) - already mounted at /media/kiron/bootfs
+# sda2: rootfs (ext4) - needs manual mounting
+}}}
+
+==== Step 2: Mount and Initial Verification ====
+{{{code: lang="sh" linenumbers="True"
+# Mount root partition read-only for safe inspection
+sudo mkdir -p /mnt/pi-root
+sudo mount -o ro /dev/sda2 /mnt/pi-root
+
+# Boot partition already available at /media/kiron/bootfs
+}}}
+
+==== Step 3: Boot Configuration Analysis ====
+{{{code: lang="sh" linenumbers="True"
+# Check USB gadget and UART configuration
+grep -E '^(enable_uart|dtoverlay)=' /media/kiron/bootfs/config.txt
+cat /media/kiron/bootfs/cmdline.txt
+ls -l /media/kiron/bootfs/ssh
+
+# Results found:
+# ✅ dtoverlay=dwc2,g_ether (USB gadget enabled)
+# ✅ modules-load=dwc2,g_ether in cmdline.txt
+# ❌ enable_uart=1 MISSING
+# ❌ ssh file MISSING (SSH disabled)
+}}}
+
+==== Step 4: NetworkManager Profiles Verification ====
+{{{code: lang="sh" linenumbers="True"
+# Check NetworkManager connection profiles
+sudo ls -l /mnt/pi-root/etc/NetworkManager/system-connections/
+sudo cat /mnt/pi-root/etc/NetworkManager/system-connections/iotrac.nmconnection
+sudo cat /mnt/pi-root/etc/NetworkManager/system-connections/KironWifi.nmconnection
+sudo cat /mnt/pi-root/etc/NetworkManager/system-connections/usb-gadget.nmconnection
+
+# Results:
+# ✅ All profiles exist with correct permissions (600 root:root)
+# ✅ KironWifi: priority 100, static IP 10.247.104.100
+# ✅ iotrac: priority 50, static IP 192.168.0.2  
+# ⚠️ usb-gadget: interface-name=eth0 (should be usb0)
+}}}
+
+==== Step 5: Service Conflicts Detection ====
+{{{code: lang="sh" linenumbers="True"
+# Check for conflicting network services
+sudo ls -l /mnt/pi-root/etc/systemd/system/multi-user.target.wants/NetworkManager.service
+sudo ls -l /mnt/pi-root/etc/systemd/system/multi-user.target.wants/ | grep -E 'dhcpcd|wpa'
+
+# Results:
+# ✅ NetworkManager.service enabled
+# ❌ wpa_supplicant.service ENABLED (conflicts with NetworkManager)
+# ✅ dhcpcd not enabled
+}}}
+
+==== Step 6: WiFi Blocking Investigation ====
+{{{code: lang="sh" linenumbers="True"
+# Check for WiFi blocking configurations
+sudo find /mnt/pi-root/etc -name "*rfkill*" -o -name "*wifi*"
+sudo cat /mnt/pi-root/etc/modprobe.d/rfkill_default.conf
+
+# Critical finding:
+# ❌ options rfkill default_state=0 (WiFi BLOCKED by default)
+}}}
+
+==== Step 7: Additional Conflict Detection ====
+{{{code: lang="sh" linenumbers="True"
+# Search for additional network configuration conflicts
+sudo find /mnt/pi-root/etc -name "*.conf" | grep -iE "(network|wifi|dhcp)"
+sudo ls -la /mnt/pi-root/etc/systemd/system/ | grep -iE "(network|wifi|dhcp|wpa)"
+
+# Found potential conflicts:
+# ⚠️ dbus-fi.w1.wpa_supplicant1.service (D-Bus alias for wpa_supplicant)
+# ✅ dhcp/dhclient.conf exists but dhcpcd service disabled
+# ✅ systemd-networkd configs nullified (/dev/null)
+}}}
+
+===== Three Major Problems Identified =====
+
+==== Problem 1: SSH Service Disabled ====
+* **Issue**: Missing `/boot/ssh` file
+* **Impact**: SSH daemon not starting on boot
+* **Severity**: Critical - no remote access possible
+
+==== Problem 2: WiFi Radio Blocked by Default ====
+* **Issue**: `rfkill default_state=0` in `/etc/modprobe.d/rfkill_default.conf`
+* **Impact**: WiFi hardware disabled at kernel level
+* **Severity**: Critical - prevents all WiFi connections
+
+==== Problem 3: wpa_supplicant Service Conflict ====
+* **Issue**: `wpa_supplicant.service` enabled alongside NetworkManager
+* **Impact**: Two network managers competing for WiFi control
+* **Severity**: High - causes connection instability and failures
+
+===== Solutions Applied =====
+
+==== Fix 1: Enable SSH Service ====
+{{{code: lang="sh" linenumbers="True"
+# Remount in write mode and enable SSH
+sudo umount /mnt/pi-root
+sudo mount /dev/sda2 /mnt/pi-root
+sudo touch /media/kiron/bootfs/ssh
+}}}
+
+==== Fix 2: Enable WiFi Hardware ====
+{{{code: lang="sh" linenumbers="True"
+# Unblock WiFi radio by default
+sudo sed -i 's/default_state=0/default_state=1/' /mnt/pi-root/etc/modprobe.d/rfkill_default.conf
+}}}
+
+==== Fix 3: Remove wpa_supplicant Conflicts ====
+{{{code: lang="sh" linenumbers="True"
+# Disable wpa_supplicant service
+sudo rm /mnt/pi-root/etc/systemd/system/multi-user.target.wants/wpa_supplicant.service
+sudo rm /mnt/pi-root/etc/systemd/system/dbus-fi.w1.wpa_supplicant1.service
+}}}
+
+==== Fix 4: Simplify Connection Profiles ====
+{{{code: lang="sh" linenumbers="True"
+# Remove unnecessary connections to prevent conflicts
+sudo rm /mnt/pi-root/etc/NetworkManager/system-connections/internet.nmconnection
+sudo rm /mnt/pi-root/etc/NetworkManager/system-connections/usb-gadget.nmconnection
+sudo rm /mnt/pi-root/etc/systemd/system/multi-user.target.wants/usb-gadget-autoconnect.service
+}}}
+
+==== Fix 5: Enable Serial Console (Backup Access) ====
+{{{code: lang="sh" linenumbers="True"
+# Add UART support for emergency console access
+echo 'enable_uart=1' | sudo tee -a /media/kiron/bootfs/config.txt
+}}}
+
+===== Final Configuration State =====
+
+==== Remaining Network Profiles ====
+* **KironWifi**: Priority 100, Static IP 10.247.104.100/24
+* **iotrac**: Priority 50, Static IP 192.168.0.2/24
+
+==== Services Status ====
+* NetworkManager.service: **ENABLED**
+* wpa_supplicant.service: **DISABLED** 
+* dhcpcd.service: **DISABLED**
+* SSH: **ENABLED**
+
+==== Boot Configuration ====
+* USB gadget: dtoverlay=dwc2,g_ether
+* Serial console: enable_uart=1
+* WiFi regulatory: cfg80211.ieee80211_regdom=PE
+* WiFi hardware: rfkill default_state=1 (unblocked)
+
+===== Expected Results =====
+
+After inserting SD card and booting Raspberry Pi:
+
+1. **WiFi radio unblocked** - hardware available for connections
+2. **NetworkManager starts cleanly** - no wpa_supplicant conflicts  
+3. **KironWifi connects first** - highest priority (100)
+4. **SSH accessible** - service enabled on boot
+5. **Fallback to iotrac** - if KironWifi unavailable (priority 50)
+6. **Serial console available** - emergency access via GPIO pins
+
+===== Validation Commands =====
+{{{code: lang="sh" linenumbers="True"
+# After Pi boots, test connections:
+ssh pi@10.247.104.100  # KironWifi (primary)
+ssh pi@192.168.0.2     # iotrac (fallback)
+
+# If still failing, connect via serial console:
+# USB-TTL: GND→GND, TXD→GPIO15, RXD→GPIO14, 115200 8N1
+# Then run diagnostics:
+sudo systemctl status NetworkManager
+sudo nmcli device status  
+sudo rfkill list wifi
+}}}
+
+===== Next Steps =====
+* Remove SD card from PC
+* Insert into Raspberry Pi Zero W  
+* Power on and wait 60 seconds for full boot
+* Test SSH connection to KironWifi IP first
+* If successful, document final working configuration
+* If still failing, use serial console for live debugging 
+
+===== Final Resolution: Reflash Required =====
+
+After exhaustive troubleshooting and applying all identified fixes, the Raspberry Pi still failed to establish network connectivity. Despite correcting all known issues (SSH enabled, WiFi unblocked, wpa_supplicant conflicts removed), the Pi did not appear in network scans and showed no signs of attempting network connections.
+
+==== Decision Point ====
+* All software-level fixes applied without success
+* Hardware appeared functional (LED indicators normal)
+* SD card integrity verified and corrections applied
+* No response to ping or SSH on any configured IP addresses
+* ARP table showed no Pi presence on any network
+
+==== Reflash Solution ====
+{{{code: lang="sh" linenumbers="True"
+# Backup essential code before reflash
+mkdir -p backup_reflash
+cp src/*.py backup_reflash/
+
+# Fresh Raspberry Pi OS installation using official imager
+# Configure KironWifi during flash process
+# Enable SSH during flash process
+}}}
+
+==== Post-Reflash Network Discovery ====
+{{{code: lang="sh" linenumbers="True"
+# Identify PC network configuration
+ip route show | grep wlan
+ip addr show | grep -A2 wlan
+
+# Results: PC on 10.105.186.180/24 (KironWifi network)
+
+# Search for Pi in DHCP range
+for i in {100..110} {170..190} {200..210}; do 
+    ping -c 1 -W 1 10.105.186.$i >/dev/null && echo "FOUND: 10.105.186.$i"
+done
+
+# Pi discovered at: 10.105.186.176
+}}}
+
+==== Successful Connection ====
+{{{code: lang="sh" linenumbers="True"
+# SSH connection established successfully
+ssh pi@10.105.186.176
+
+# Connection details:
+# Host: 10.105.186.176
+# Network: KironWifi (DHCP assigned)
+# SSH: Working with key authentication
+# Status: Fully functional
+}}}
+
+===== Root Cause Analysis =====
+
+==== What Went Wrong ====
+Despite comprehensive troubleshooting that identified and corrected multiple legitimate issues:
+1. SSH service disabled
+2. WiFi hardware blocked by rfkill
+3. wpa_supplicant service conflicts
+4. Excess connection profiles causing confusion
+
+The system still failed to establish connectivity, suggesting:
+* **Deep system corruption** not visible in file-level inspection
+* **Hidden configuration conflicts** in binary/cache files
+* **Kernel-level issues** not detectable through standard diagnostics
+* **NetworkManager internal state corruption** requiring clean reinstallation
+
+==== Why Reflash Succeeded ====
+* **Clean system state** - no hidden conflicts or corrupted caches
+* **Fresh NetworkManager installation** - no internal state corruption
+* **Default boot process** - no race conditions or startup conflicts
+* **Clean kernel modules** - WiFi drivers loaded without conflicts
+
+===== Lessons Learned =====
+
+==== When to Consider Reflash ====
+1. **Hardware confirmed functional** (Pi boots, LEDs normal)
+2. **All software fixes applied** but problem persists
+3. **No network presence detected** (ARP, ping, scan failures)
+4. **Time constraints** require quick resolution
+5. **System shows signs of deep corruption** beyond file-level fixes
+
+==== Diagnostic Hierarchy ====
+1. **File-level configuration** (what we did first)
+2. **Service and permission issues** (systemd, NetworkManager)
+3. **Hardware blocking** (rfkill, firmware)
+4. **Deep system conflicts** (cache, binary state)
+5. **Complete system refresh** (reflash as last resort)
+
+===== Current Status =====
+
+==== Network Configuration ====
+* **Pi IP**: 10.105.186.176 (DHCP assigned)
+* **Network**: KironWifi
+* **SSH Access**: ✅ Functional
+* **Connection**: Stable
+
+==== Next Steps ====
+1. Configure static IP addresses for predictable access
+2. Set up iotrac as backup connection
+3. Restore motor test code from backup
+4. Continue with project development
+
+==== Success Metrics ====
+* ✅ Pi connectivity restored
+* ✅ SSH access functional
+* ✅ WiFi hardware confirmed working
+* ✅ Development can continue
+* ✅ Project timeline preserved
+
+===== Conclusion =====
+
+Sometimes despite thorough troubleshooting and correct identification of multiple issues, deep system corruption requires a complete refresh. The reflash approach, while seeming drastic, proved to be the most time-efficient solution when facing:
+
+* Multiple simultaneous system conflicts
+* Hidden corruption not visible in standard diagnostics  
+* Time-critical project deadlines
+* Hardware confirmed functional
+
+The key insight is recognizing when to escalate from configuration fixes to complete system refresh, especially when all logical troubleshooting steps have been exhausted without success.
+
+===== Motor Controller Diagnosis Session =====
+
+After successful connectivity restoration, focused on resolving the persistent motor control issue where L298N controller shows power (LED ON) but motors remain unresponsive.
+
+==== Systematic Elimination Process ====
+
+===== ❌ Problems ELIMINATED (Not the cause) =====
+
+==== ENA/ENB Jumper Configuration ====
+* **Initial hypothesis**: Missing ENA/ENB GPIO connections causing motor disable
+* **Test method**: Created motor_test_simple.py using only IN1-IN4 pins with jumpers enabled
+* **Result**: Motors still unresponsive with jumpers connected (always-enabled mode)
+* **Conclusion**: ENA/ENB control method not the issue
+
+==== Jumper Cable Integrity ====
+* **Initial hypothesis**: Cut and reconnected jumper cables have intermittent connections
+* **Test method**: Executed blinky.py using same jumper cables for LED control
+* **Result**: LEDs responded perfectly to GPIO commands through same cables
+* **Conclusion**: Cable continuity and GPIO signal transmission confirmed functional
+
+==== Power Supply Issues ====
+* **Initial hypothesis**: Insufficient power or voltage drops
+* **Test method**: Multimeter verification of powerbank output and cable endpoints
+* **Result**: 5V confirmed stable, L298N LED consistently ON
+* **Conclusion**: Power delivery to controller confirmed adequate
+
+==== Direct Hardware Test ====
+* **Initial hypothesis**: GPIO signal levels insufficient for L298N input
+* **Test method**: Direct connection of IN1-IN4 pins to 5V/GND from powerbank
+* **Result**: No motor response even with direct 5V signal input
+* **Conclusion**: Problem exists beyond GPIO signal levels
+
+===== ⚠️ Remaining POSSIBLE Causes =====
+
+==== L298N Controller Internal Failure ====
+* **Symptoms**: LED indicates power but no motor output response
+* **Possibility**: Power circuitry functional but H-bridge drivers damaged
+* **Evidence**: No response to direct 5V input on control pins
+* **Next steps**: Replace L298N module for definitive test
+
+==== Motor Physical Failure ====
+* **Symptoms**: Both motors completely unresponsive 
+* **Possibility**: Internal motor windings damaged or mechanical seizure
+* **Evidence**: No movement, sound, or resistance change during tests
+* **Next steps**: Direct powerbank connection to motor terminals (bypass L298N)
+
+==== Wiring Configuration Error ====
+* **Symptoms**: Correct pin assignments but no functional response
+* **Possibility**: Motor polarity, ground reference, or connection sequence issue
+* **Evidence**: All logical connections verified but system non-functional
+* **Next steps**: Complete rewiring with fresh components
+
+===== Current Status =====
+
+* **Connectivity**: ✅ Raspberry Pi fully operational via WiFi
+* **GPIO Control**: ✅ Confirmed functional through LED tests
+* **Power Supply**: ✅ Stable 5V delivery verified
+* **L298N Power**: ✅ Controller LED indicates power reception
+* **Motor Response**: ❌ Zero movement despite all inputs confirmed
+
+===== Next Session Strategy =====
+
+* **Component Isolation**: Test motors directly with powerbank (bypass L298N)
+* **Hardware Replacement**: Consider new L298N module if current unit suspected faulty
+* **Alternative Approach**: Evaluate different motor control methods if L298N proves problematic
+* **Documentation**: Complete motor subsystem before proceeding to sensors
+
+===== Session Conclusion =====
+
+Systematic elimination successfully narrowed the problem scope by confirming multiple subsystems are functional. The issue is isolated to either L298N internal failure or motor hardware failure. Direct motor testing will provide definitive diagnosis in next session.

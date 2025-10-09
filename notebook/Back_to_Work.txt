@@ -104,7 +104,7 @@ Raspberry Pi GND → HC-SR04 GND (direct connection)
 * Ready to implement motor connections
 
 ===== Start of L298N Controller Connection =====
-==== Pin Connections =====
+==== Pin Connections ====
 * VCC: 5V power supply
 * GND: Ground
 * ENA: Enable pin for Motor A (PWM control)
@@ -114,7 +114,7 @@ Raspberry Pi GND → HC-SR04 GND (direct connection)
 * OUT1, OUT2: Motor A connections
 * OUT3, OUT4: Motor B connections
 
-==== Physical Pin Connections =====
+==== Physical Pin Connections ====
 {{{code: lang="text" linenumbers="True"
 L298N Controlador    →    Raspberry Pi Physical Pin
 ├── IN1              →    GPIO 17 (Pin 11)
@@ -151,7 +151,6 @@ L298N Controlador    →    Raspberry Pi Physical Pin
 * Verify continuity of cut jumper cables
 * Test with multimeter to check voltage at L298N input pins
 * Consider using new uncut jumper cables for testing
-
 ===== Connection Test Code Created =====
 {{{code: lang="python" linenumbers="True"
 #!/usr/bin/env python3
@@ -206,3 +205,128 @@ print("Test completed.")
 * Problem identified: Likely issue with cut jumper cables
 * Ready for manual connection testing tomorrow
 * Connection test code ready for troubleshooting
+
+===== Connectivity Incident: NetworkManager not loading =====
+* Date: 2025-09-04
+* Status: Raspberry Pi Zero W powers on, but no SSH via WiFi or USB
+* Verified: SD card intact; NetworkManager connection profiles present; ssh file exists; usb-gadget-autoconnect systemd service present
+
+==== Symptoms ====
+* ssh raspi → No route to host
+* ssh pi@192.168.0.2 → No route to host
+* ssh pi@10.247.104.100 (KironWifi) → Timeout
+* ssh pi@192.168.7.2 (USB gadget) → Destination Host Unreachable
+
+==== Hypothesis ====
+* NetworkManager is not starting correctly or not loading connection profiles on boot.
+* Possible service failure, race at boot, or config mismatch (interface names, permissions).
+
+==== Root Cause Candidates ====
+* NetworkManager service not enabled or failing
+* Conflicting network stack (legacy dhcpcd or wpa_supplicant remnants)
+* Wrong interface name (expecting wlan0/usb0/eth0) after udev rules change
+* Corrupted nm profiles permissions/context
+* usb-gadget not created at boot due to missing dtoverlay/OTG config
+
+==== Immediate Plan ====
+1) Enable serial console to get shell
+2) Verify NetworkManager and gadget services
+3) Bring up WiFi or USB manually to restore SSH
+
+==== Step 1: Enable serial console (on SD card) ====
+{{{code: lang="ini" linenumbers="True"
+# In config.txt (append if missing)
+enable_uart=1
+# For Pi Zero W, ensure OTG overlay for USB gadget
+dtoverlay=dwc2
+}}
+{{{code: lang="sh" linenumbers="True"
+# In cmdline.txt (single line), add after root=...:
+console=serial0,115200 kgdboc=serial0,115200
+# Keep modules-load=dwc2,g_ether if using USB gadget networking
+}}}
+
+==== Step 2: Connect via USB-TTL console ====
+{{{code: lang="text" linenumbers="True"
+Host: USB-TTL to Pi GPIO
+- GND → GND
+- TXD → GPIO15 (RXD0)
+- RXD → GPIO14 (TXD0)
+115200 8N1
+Login: pi (ssh key not needed on serial)
+}}}
+
+==== Step 3: Check services on the Pi ====
+{{{code: lang="sh" linenumbers="True"
+sudo systemctl status NetworkManager --no-pager
+sudo journalctl -u NetworkManager -b --no-pager | tail -200
+sudo nmcli general status
+sudo nmcli device status
+sudo nmcli connection show
+
+# Check for conflicting services
+systemctl is-enabled dhcpcd || true
+systemctl is-enabled wpa_supplicant || true
+sudo systemctl status dhcpcd wpa_supplicant --no-pager
+
+# USB gadget
+sudo systemctl status usb-gadget-autoconnect --no-pager
+journalctl -b | grep -iE "dwc2|g_ether|usb0|usb gadget" | tail -200
+}}}
+
+==== Step 4: Quick recovery commands (temporary) ====
+{{{code: lang="sh" linenumbers="True"
+# If NM is inactive, try to start and enable it
+sudo systemctl enable NetworkManager
+sudo systemctl restart NetworkManager
+
+# If profiles exist but devices down, bring up explicitly
+sudo nmcli con up iotrac || true
+sudo nmcli con up KironWifi || true
+sudo nmcli con up usb-gadget || true
+
+# If interface names differ, discover and bind
+nmcli device status
+# Example: if wifi shows as wlan0, force the ifname mapping in profile
+sudo nmcli con modify iotrac ifname wlan0
+sudo nmcli con modify KironWifi ifname wlan0
+
+# If dhcpcd/wpa_supplicant conflict, disable them
+sudo systemctl disable --now dhcpcd || true
+sudo systemctl disable --now wpa_supplicant || true
+
+# Bring USB gadget up if present
+ip link show usb0 || true
+sudo nmcli dev set usb0 managed yes || true
+sudo nmcli con up usb-gadget || true
+}}}
+
+==== Step 5: If NM fails early at boot ====
+{{{code: lang="sh" linenumbers="True"
+# Ensure NM starts earlier and waits for D-Bus
+sudo systemctl enable NetworkManager.service
+sudo systemctl enable NetworkManager-wait-online.service
+
+# Mask legacy services
+sudo systemctl mask networking || true
+sudo systemctl mask systemd-networkd || true
+}}}
+
+==== Alternate Access: Force DHCP on boot (temporary) ====
+{{{code: lang="sh" linenumbers="True"
+# In cmdline.txt (single line), add one of the following temporary params:
+# ip=dhcp  OR  ip=192.168.0.2:::192.168.0.1:255.255.255.0:raspberrypi:wlan0:off
+# Remove after recovery
+}}}
+
+==== Validation Checklist ====
+* NetworkManager active and enabled
+* wlan0 managed by NM, usb0 present for gadget
+* `nmcli con show` lists iotrac, KironWifi, usb-gadget with correct priorities
+* IP assigned or static on selected profile
+* SSH reachable via at least one method
+
+==== Next Actions ====
+* Capture logs from NetworkManager and kernel USB gadget
+* If NM profiles corrupted, recreate with nmcli and set priorities
+* Document final fix and rollback any temporary cmdline changes
