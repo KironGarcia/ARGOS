@@ -1,0 +1,33 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2025-10-09
+
+====== Technical Info About ARGOS ======
+
+**Project Overview**
+
+ARGOS is a comprehensive IoT security and autonomous vehicle project divided into two main components:
+
+1. **ARGOS Application** - IoT security monitoring and management platform
+2. **ARGOS Autonomous Car** - Smart vehicle system with sensors and autonomous capabilities
+
+---
+
+**Project Structure**
+
+* `/argos-app/` - Application backend and frontend
+* `/argos-car/` - Autonomous vehicle hardware and software
+
+---
+
+**Documentation Status**
+
+This document serves as the main technical reference for the entire ARGOS project ecosystem.
+
+All major changes, architectural decisions, and system integrations will be documented here.
+
+---
+
+**Last Updated:** 2025-10-09
+**Status:** In Development
+

@@ -1,0 +1,470 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2025-10-09T00:00:00+00:00
+
+====== Building ARGOS from the Ashes ======
+Created Thursday 09 October 2025
+
+===== Introduction: The Journey from IOTRAC to ARGOS =====
+
+==== The Beginning: IOTRAC University Project ====
+
+In early 2025, **IOTRAC** (IoT, Track, Recording, Act and Control) was conceived as a university scientific initiation project. The vision was clear: create a mobile application that would democratize IoT security, putting cybersecurity protection directly in the hands of users rather than relying solely on large corporations to secure their connected devices.
+
+The core concept was revolutionary yet practical: implement a **cryptographic security layer** for IoT device communications, intercepting and protecting data traffic in real-time. To demonstrate this capability at the **NEXT Technology Event**, the team planned to build a 3D-printed mini autonomous car controlled by a Raspberry Pi, simulating a live hacking attack and demonstrating how the application could block it in real-time.
+
+==== The Team and the Challenge ====
+
+A collaborative team of **three developers** worked together, united by the belief in the project's innovative potential. The goal was ambitious: showcase a future where IoT devices—increasingly integrated into daily life—could be secured by an accessible, user-friendly mobile application.
+
+Despite reaching the **final elimination round** of the NEXT, the team did not achieve classification. Multiple factors contributed:
+* **Incomplete product development**: The solution required more refinement to be market-ready
+* **Vision misalignment**: Team members had different perspectives on work methodology and application direction
+* **Collaboration challenges**: Differences in commitment levels and technical approaches created friction
+
+Following this outcome, the team mutually decided to part ways, with each member pursuing their own path.
+
+==== The Rebirth: From Failure to Evolution ====
+
+**Kiron García**, the project's founder and lead developer, remained deeply passionate about the original vision. Rather than abandoning the concept after the competition setback, a critical period of reflection and reevaluation began:
+
+**What worked well:**
+* ✅ Core cryptographic architecture (AES-256 + HMAC)
+* ✅ Multi-protocol support (UDP/TCP/Bluetooth)
+* ✅ FastAPI backend infrastructure
+* ✅ React Native mobile foundation
+* ✅ Authentication system implementation
+
+**What needed transformation:**
+* 🔄 Project branding and market positioning
+* 🔄 Feature set and user experience
+* 🔄 Technology stack modernization
+* 🔄 Architecture reorganization
+* 🔄 Product focus and target audience
+
+==== The ARGOS Vision: A Complete Rework ====
+
+The decision was made: **IOTRAC would evolve into ARGOS**—a complete reworking that preserves the solid technical foundation while introducing:
+
+* **New Identity**: Fresh branding, modern UI/UX, professional positioning
+* **Enhanced Features**: AI-powered threat detection, advanced monitoring, multi-device management
+* **Expanded Technology**: Integration with modern AI/LLM systems, improved Bluetooth support
+* **Refined Architecture**: Clean separation of concerns, scalable design patterns
+* **Clear Direction**: Focused mission with well-defined user personas and use cases
+
+This documentation marks the **starting point of the ARGOS transformation**—a comprehensive record of what exists today and the roadmap for what will be built tomorrow.
+
+---
+
+===== Current Structure: Legacy IOTRAC System =====
+
+The following sections document the complete technical analysis of the existing IOTRAC codebase, serving as the foundation for the ARGOS rework.
+
+==== Technology Stack Overview ====
+
+===== Backend Technologies =====
+
+**Core Framework:**
+* **FastAPI** - Modern, high-performance Python web framework
+* **Uvicorn** - ASGI server for production deployment
+* **SQLite** - Lightweight relational database
+* **Python 3.8+** - Primary programming language
+
+**Security & Cryptography:**
+* **Cryptography** - AES-256-CBC encryption + HMAC-SHA256 authentication
+* **PyJWT** - JSON Web Token implementation for authentication
+* **Bcrypt** - Secure password hashing (4.0+)
+* **Python-Jose** - Additional JWT support with cryptography
+
+**IoT Communication:**
+* **Bleak** (≥0.20.0) - Bluetooth Low Energy (BLE) communication library
+* **Custom UDP/TCP Interceptors** - Real-time command interception
+
+**Authentication & 2FA:**
+* **PyOTP** (≥2.8.0) - TOTP (Time-based One-Time Password) implementation
+* **QRCode** (≥7.4.0) - QR code generation for TOTP setup
+* **Pillow** (≥10.0.0) - Image processing for QR codes
+* **Email-Validator** (≥2.0.0) - Email format validation
+
+**Artificial Intelligence:**
+* **Integration layer for multiple LLM providers:**
+  - OpenAI (GPT-4)
+  - Anthropic (Claude)
+  - Groq
+  - Ollama (local models)
+* **Custom anomaly detection algorithms**
+* **Pattern recognition for security threats**
+
+**Testing & Quality:**
+* **Pytest** - Testing framework
+* **Pytest-asyncio** - Async test support
+* **HTTPX** - HTTP client for testing
+* **50 automated tests** covering all critical paths
+
+===== Frontend Technologies =====
+
+**Core Framework:**
+* **React Native** 0.79.4 - Cross-platform mobile framework
+* **Expo** 53.0.12 - Development and build toolchain
+* **TypeScript** 5.8.3 - Static typing and enhanced developer experience
+
+**Navigation & Routing:**
+* **Expo Router** 5.1.0 - File-based routing system
+* **React Navigation** 7.1+ - Navigation library with native stack and bottom tabs
+* **@react-navigation/native-stack** 7.3+ - Native stack navigator
+* **@react-navigation/bottom-tabs** 7.3+ - Bottom tab navigator
+
+**State Management & Data:**
+* **AsyncStorage** 2.2.0 - Local data persistence
+* **Axios** 1.10.0 - HTTP client for API communication
+* **React Context API** - Global state management (AuthContext)
+
+**UI Components & Effects:**
+* **Expo Linear Gradient** 14.1+ - Gradient effects
+* **Expo Blur** 14.1+ - Blur effects
+* **Expo Haptics** 14.1+ - Haptic feedback
+* **React Native Gesture Handler** 2.24+ - Advanced gesture handling
+* **React Native Reanimated** 3.17+ - Smooth animations
+
+**Additional Features:**
+* **Expo Image** 2.3+ - Optimized image component
+* **React Native Toast Message** 2.3+ - Toast notifications
+* **React Native WebView** 13.13+ - WebView component
+* **Expo Symbols** 0.4+ - Icon system
+
+==== System Architecture ====
+
+===== Backend Architecture =====
+
+**Layer 1: Core Infrastructure**
+{{{code: lang="text" linenumbers="True"
+├── FastAPI Application (main.py)
+│   ├── CORS Middleware (Cross-Origin Resource Sharing)
+│   ├── Request/Response Logging
+│   └── Error Handling & Exception Management
+│
+├── Database Layer (SQLite)
+│   ├── Device Management Tables
+│   ├── User Authentication Tables
+│   ├── Logs & Audit Tables
+│   └── Anomaly Detection Tables
+│
+└── Configuration Management
+    ├── Environment Variables (.env)
+    ├── Cryptographic Keys (AES, HMAC, JWT)
+    └── System Settings
+}}}
+
+**Layer 2: Authentication System**
+{{{code: lang="text" linenumbers="True"
+Authentication Flow:
+├── Step 1: Email/Password Login
+│   ├── Email validation
+│   ├── Password strength check (8+ chars, uppercase, lowercase, digit, symbol)
+│   ├── Bcrypt password verification
+│   └── Generate temporary token
+│
+├── Step 2: Email Verification (New Users)
+│   ├── Send 6-digit code via email
+│   ├── Code expiration (15 minutes)
+│   └── Account activation
+│
+├── Step 3: Two-Factor Authentication (2FA)
+│   ├── SMS/Email code (6 digits)
+│   ├── Code expiration (10 minutes)
+│   └── Temporary token validation
+│
+├── Step 4: TOTP Setup (Optional)
+│   ├── Generate QR code for Google Authenticator
+│   ├── TOTP secret key generation
+│   └── Verification of first TOTP code
+│
+└── Step 5: Access Token Generation
+    ├── JWT Access Token (short-lived)
+    ├── JWT Refresh Token (long-lived)
+    └── User session management
+}}}
+
+**User Roles & Permissions:**
+* **Admin** - Full system access, user management
+* **User** - Standard device management and monitoring
+* **Device Operator** - Limited to device control operations
+
+**Layer 3: IoT Device Management**
+{{{code: lang="text" linenumbers="True"
+Device Lifecycle:
+├── Registration
+│   ├── Device type validation (drone, vehicle, smart-lamp, etc.)
+│   ├── IP/MAC address assignment
+│   ├── Unique ID generation
+│   └── Database entry creation
+│
+├── Protection Control
+│   ├── Global protection toggle (all devices)
+│   ├── Individual device protection toggle
+│   ├── Protection status monitoring
+│   └── Default protection policy
+│
+├── Command Processing
+│   ├── Command validation
+│   ├── Encryption check (if protection enabled)
+│   ├── HMAC verification
+│   └── Protocol routing (UDP/TCP/Bluetooth)
+│
+└── Communication Protocols
+    ├── UDP - Drones (port 5000)
+    ├── TCP - Vehicles, Smart Home (ports 5001-5002)
+    └── Bluetooth - BLE devices (scanning, pairing, commands)
+}}}
+
+**Layer 4: Cryptography & Security**
+{{{code: lang="text" linenumbers="True"
+Encryption Pipeline:
+├── AES-256-CBC Encryption
+│   ├── Random IV (Initialization Vector) generation
+│   ├── Command encryption with AES key
+│   ├── Base64 encoding
+│   └── Ciphertext output
+│
+├── HMAC-SHA256 Authentication
+│   ├── Message authentication code generation
+│   ├── Integrity verification
+│   └── Tampering detection
+│
+├── JWT Token Management
+│   ├── Token signing with secret key
+│   ├── Expiration time enforcement
+│   ├── Token refresh mechanism
+│   └── Token blacklisting (logout)
+│
+└── Security Validations
+    ├── SQL Injection prevention
+    ├── XSS (Cross-Site Scripting) blocking
+    ├── Command Injection detection
+    ├── Path Traversal protection
+    └── Input sanitization
+}}}
+
+**Layer 5: AI & Anomaly Detection**
+{{{code: lang="text" linenumbers="True"
+AI Security System:
+├── Anomaly Detection Engine
+│   ├── Command pattern analysis
+│   ├── Frequency monitoring
+│   ├── Behavioral baselines
+│   └── Threat scoring algorithms
+│
+├── LLM Integration
+│   ├── OpenAI GPT-4 integration
+│   ├── Anthropic Claude integration
+│   ├── Groq API integration
+│   └── Ollama local models
+│
+├── Security Assistant
+│   ├── Natural language queries
+│   ├── Threat analysis reports
+│   ├── Security recommendations
+│   └── Incident summaries
+│
+└── Alert System
+    ├── Real-time threat detection
+    ├── Severity classification (info, warning, critical)
+    ├── Alert aggregation
+    └── Notification delivery
+}}}
+
+**Layer 6: Logging & Monitoring**
+{{{code: lang="text" linenumbers="True"
+Dual Logging System:
+├── Simple Logs (End Users)
+│   ├── Device connection events
+│   ├── Protection status changes
+│   ├── Command execution logs
+│   ├── Security alerts
+│   └── User-friendly messages
+│
+└── Advanced Logs (Technical Users)
+    ├── System-level events
+    ├── Performance metrics
+    ├── Stack traces
+    ├── Debug information
+    └── API request/response logs
+}}}
+
+===== Frontend Architecture =====
+
+**Navigation Structure:**
+{{{code: lang="text" linenumbers="True"
+App Root
+├── Authentication Stack (unauthenticated)
+│   ├── /login - User login screen
+│   ├── /register - New user registration
+│   ├── /verify-email - Email verification (6-digit code)
+│   ├── /verify-2fa - Two-factor authentication
+│   └── /totp-setup - Google Authenticator setup
+│
+└── Home Stack (authenticated)
+    ├── /home/index - Device list & management
+    ├── /home/new-device - Device registration form
+    ├── /home/device-details - Individual device control
+    ├── /home/logs - Simple log viewer
+    ├── /home/advanced-logs - Technical log viewer
+    ├── /home/argos-bot - AI security chatbot
+    └── /settings - Application settings
+}}}
+
+**Authentication Flow Implementation:**
+{{{code: lang="typescript" linenumbers="True"
+// Complete Authentication Journey
+1. User enters email/password → /login
+2. Backend validates credentials
+3. If new user → /verify-email (email code)
+4. If 2FA enabled → /verify-2fa (SMS/email code)
+5. If TOTP setup required → /totp-setup (QR scan)
+6. Success → /home (authenticated area)
+
+// Token Management
+- Access Token: Stored in AsyncStorage, sent in Authorization header
+- Refresh Token: Stored securely, used for token renewal
+- Auto-refresh: Interceptor automatically refreshes expired tokens
+- Logout: Clears all tokens and redirects to login
+}}}
+
+**State Management:**
+{{{code: lang="typescript" linenumbers="True"
+Global State (React Context):
+├── AuthContext
+│   ├── User information (id, email, name, role)
+│   ├── Authentication status
+│   ├── Token management
+│   └── Login/Logout methods
+│
+└── Local State (Component-level)
+    ├── Device list & filters
+    ├── Loading states
+    ├── Error messages
+    └── Form inputs
+}}}
+
+**Component Architecture:**
+{{{code: lang="text" linenumbers="True"
+Component Hierarchy:
+├── Screen Components (pages)
+│   ├── Authentication screens
+│   ├── Device management screens
+│   └── Settings & logs screens
+│
+├── Reusable Components
+│   ├── Device Card (protection toggle, status, actions)
+│   ├── DevicesMenu (quick actions toolbar)
+│   ├── ConnectionStatus (backend connectivity indicator)
+│   ├── Banner (informational messages)
+│   ├── Button (standardized action buttons)
+│   └── Header (navigation headers)
+│
+└── Services & Utilities
+    ├── API Service (axios instance with interceptors)
+    ├── Auth Service (login, register, token refresh)
+    └── Custom Hooks (useApi, useDevices)
+}}}
+
+**Design System:**
+{{{code: lang="text" linenumbers="True"
+Visual Identity:
+├── Color Palette
+│   ├── Primary: Lime Green (#32CD32) - Active/Protected
+│   ├── Secondary: Silver/Gray (#E8E8E8, #F5F5F5) - Cards/Backgrounds
+│   ├── Inactive: Dark Gray (#666666) - Disabled states
+│   ├── Success: Green - Positive actions
+│   ├── Warning: Yellow/Orange - Caution alerts
+│   └── Critical: Red - Danger/Errors
+│
+├── Typography
+│   ├── Headings: Bold, clear hierarchy
+│   ├── Body text: Readable, comfortable sizing
+│   └── Monospace: Technical logs & codes
+│
+└── UI Effects
+    ├── Metallic appearance (gradients, shadows)
+    ├── Smooth animations (reanimated)
+    ├── Haptic feedback on interactions
+    └── Pull-to-refresh gestures
+}}}
+
+==== Feature Implementation Status ====
+
+===== ✅ Completed Features =====
+
+**Authentication & Security:**
+* ✅ Email/Password login with validation
+* ✅ User registration with password strength requirements
+* ✅ Email verification with 6-digit codes
+* ✅ Two-Factor Authentication (2FA) via SMS/Email
+* ✅ TOTP with Google Authenticator integration
+* ✅ JWT access & refresh token system
+* ✅ Role-based access control (Admin, User, Device Operator)
+* ✅ Automatic token refresh on expiration
+* ✅ Secure password hashing with bcrypt
+
+**Device Management:**
+* ✅ Device registration (drone, vehicle, smart home devices)
+* ✅ Device listing with real-time status
+* ✅ Individual device protection toggle
+* ✅ Global protection toggle (all devices)
+* ✅ Device deletion
+* ✅ Device details view with full information
+* ✅ Support for multiple device types
+
+**Communication Protocols:**
+* ✅ UDP communication (drones - port 5000)
+* ✅ TCP communication (vehicles, smart home - ports 5001-5002)
+* ✅ Bluetooth Low Energy (BLE) support
+* ✅ Device scanning (Bluetooth)
+* ✅ Device pairing and connection management
+* ✅ Command routing based on protocol type
+
+**Cryptography & Protection:**
+* ✅ AES-256-CBC encryption for commands
+* ✅ HMAC-SHA256 message authentication
+* ✅ Random IV generation per message
+* ✅ Encryption enforcement when protection enabled
+* ✅ Command blocking for unencrypted traffic (when protected)
+* ✅ Secure key management (environment variables)
+
+**Logging & Monitoring:**
+* ✅ Dual logging system (simple + advanced)
+* ✅ Log categorization by event type
+* ✅ Severity levels (info, warning, critical)
+* ✅ Pagination for log viewing
+* ✅ Real-time log updates
+* ✅ Audit trail for all operations
+
+**AI & Security Features:**
+* ✅ Anomaly detection algorithm
+* ✅ Command pattern analysis
+* ✅ LLM integration (OpenAI, Anthropic, Groq, Ollama)
+* ✅ AI security assistant
+* ✅ Threat scoring system
+* ✅ Alert generation and management
+
+**Mobile Application:**
+* ✅ Cross-platform mobile app (iOS & Android via Expo)
+* ✅ Modern UI with metallic design theme
+* ✅ Responsive layouts for different screen sizes
+* ✅ Pull-to-refresh functionality
+* ✅ Real-time data synchronization
+* ✅ Connection status indicator
+* ✅ Toast notifications for user feedback
+
+**Testing:**
+* ✅ 50 automated backend tests (100% pass rate)
+* ✅ Test coverage across all critical paths:
+  - 12 cryptography tests
+  - 3 device registration tests
+  - 8 database tests
+  - 12 API endpoint tests
+  - 10 interception tests
+  - 2 integration tests
+  - 2 performance tests
+  - 2 security tests
+

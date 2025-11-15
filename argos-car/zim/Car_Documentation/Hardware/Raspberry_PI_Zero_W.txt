@@ -20,6 +20,7 @@ https://pinout.xyz/
 * Issue following commands
 
 ===== Network Configuration =====
+
 ==== WiFi Connections ====
 Will connect to iotrac SSID automatically.
 IP: 192.168.0.2/24
@@ -115,8 +116,11 @@ Key access only
 * SSH access with key authentication
 
 ===== Challenges & Solutions =====
+
 ==== How to connect to the PI using wifi ====
+
 ==== Possible solutions ====
+
 ==== Solution 1 ====
 * Have a phone, with a fixed SSID.
 * Pi connects to SSID. 
@@ -131,3 +135,76 @@ Key access only
 * USB gadget interface as backup connection (192.168.7.2)
 * SSH key authentication configured
 * Multiple connection methods available
+
+===== SSH Configuration File =====
+To access and edit SSH configuration file:
+{{{code: lang="sh" linenumbers="True"
+vim ~/.ssh/config
+}}}
+
+==== Current SSH Config ====
+{{{code: lang="sh" linenumbers="True"
+# Raspberry Pi iotrac connection
+Host raspi
+    Hostname 192.168.0.2
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi internet connection
+Host raspi_internet
+    Hostname 192.168.1.48
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi USB connection
+Host raspi_usb
+    Hostname 192.168.7.2
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+}}}
+
+==== Connection Commands ====
+{{{code: lang="sh" linenumbers="True"
+# Connect via iotrac WiFi
+ssh raspi
+
+# Connect via internet WiFi
+ssh raspi_internet
+
+# Connect via USB
+ssh raspi_usb
+}}}
+
+===== WiFi Cellphone Backup Configuration =====
+
+==== Add Cellphone WiFi Connection ====
+{{{code: lang="sh" linenumbers="True"
+# Add cellphone WiFi connection
+sudo nmcli con add type wifi ifname wlan0 con-name "cellphone" ssid "<cellphone_ssid>"
+
+# Set password for cellphone WiFi
+sudo nmcli con modify "cellphone" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "<cellphone_password>"
+
+# Set static IP for cellphone connection
+sudo nmcli con modify "cellphone" ipv4.addresses "192.168.43.100/24"
+sudo nmcli con modify "cellphone" ipv4.gateway "192.168.43.1"
+sudo nmcli con modify "cellphone" ipv4.dns "192.168.43.1,8.8.8.8"
+sudo nmcli con modify "cellphone" ipv4.method manual
+sudo nmcli con modify "cellphone" connection.autoconnect yes
+}}}
+
+==== Update SSH Config for Cellphone ====
+Add to ~/.ssh/config:
+{{{code: lang="sh" linenumbers="True"
+# Raspberry Pi cellphone connection
+Host raspi_cellphone
+    Hostname 192.168.43.100
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+}}}
+
+==== Connection Priority ====
+1. **iotrac** (192.168.0.2) - Primary, no internet
+2. **cellphone** (192.168.43.100) - Backup with internet
+3. **internet** (192.168.1.48) - Secondary WiFi
+4. **usb** (192.168.7.2) - Direct connection backup
