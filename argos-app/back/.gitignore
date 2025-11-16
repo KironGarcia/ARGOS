@@ -1,0 +1,76 @@
+# Arquivos de configuração sensíveis
+config/.env
+config/.env.local
+config/.env.production
+config/.env.backup*
+
+# Banco de dados
+database/iotrac.db
+database/*.db
+
+# Logs
+*.log
+server.log
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Ambiente virtual
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.bak
+*.backup 
+
+#certificado https
+.env
+cert.pem
+key.pem
