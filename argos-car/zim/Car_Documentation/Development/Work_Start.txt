@@ -1,0 +1,135 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2025-01-15T00:00:00+00:00
+
+====== Work Start ======
+Created Wednesday 15 January 2025
+
+===== Project Resumption: ARGOS-Car Construction =====
+
+After a long pause, we resume the construction of ARGOS-car. For this, we take the following considerations:
+
+===== First Consideration: Motor System Replacement =====
+
+==== Previous Configuration (5V System) ====
+* **Power Supply**: 5V Powerbank connected directly to L298N
+* **Configuration**: 5V_EN jumper removed (dual power supply mode)
+* **Connections**: 
+  - Powerbank 5V (+) → L298N "+5V" (logic)
+  - Powerbank 5V (+) → L298N "+12V" (motors)
+  - Powerbank GND (-) → L298N "GND"
+* **Motors**: DC 3.7V (insufficient torque)
+* **Control**: Only IN1, IN2, IN3, IN4 (direction)
+* **ENA/ENB**: Jumpers installed (maximum speed, no PWM control)
+
+==== New Configuration (12V System) ====
+* **Power Supply**: Dedicated 12V 10900mAh battery for motors
+* **Configuration**: 5V_EN jumper installed (factory default)
+* **Connections**:
+  - 12V Battery (+) → L298N "+12V"
+  - 12V Battery (-) → L298N "GND"
+  - L298N internal regulator generates 5V for logic circuits
+* **Motors**: JGA25 12V DC gearmotor (adequate torque)
+* **Initial Control**: Only IN1, IN2, IN3, IN4 (direction)
+* **ENA/ENB**: Jumpers installed initially (no PWM control yet)
+
+==== Why Change Configuration? ====
+The previous configuration worked, but the 3.7V motors did not have sufficient torque to move the car. With the 12V battery and JGA25 12V motors, we will have adequate power. The 5V_EN jumper must be installed so that the L298N internal regulator works correctly with 12V input.
+
+==== Common Ground Connection ====
+For GPIO signals to work correctly, all systems must share the same ground reference. We will use two GND pins on the Raspberry Pi to safely distribute current:
+* **Motor GND**: 12V Battery GND → L298N GND → Raspberry Pi GND (Pin 9 and Pin 14)
+* All Raspberry Pi GND pins are internally connected
+* Using multiple pins distributes current safely
+
+**Important**: Connect the 12V battery GND to pins 9 and 14 of the Raspberry Pi to establish common ground.
+
+===== Second Consideration: Currently Used Pins on Raspberry Pi =====
+
+| Component | GPIO | Physical Pin | Function |
+|-----------|------|--------------|----------|
+| HC-SR04 Sensor | GPIO 24 | Pin 18 | TRIG (trigger) |
+| HC-SR04 Sensor | GPIO 10 | Pin 19 | ECHO (return) |
+| L298N Motor | GPIO 17 | Pin 11 | IN1 (Motor A direction) |
+| L298N Motor | GPIO 27 | Pin 13 | IN2 (Motor A direction) |
+| L298N Motor | GPIO 22 | Pin 15 | IN3 (Motor B direction) |
+| L298N Motor | GPIO 23 | Pin 16 | IN4 (Motor B direction) |
+| Common Ground | GND | Pin 9, 14 | Ground reference |
+
+**Note**: ENA and ENB are not connected yet. Jumpers are installed on L298N, allowing maximum speed without PWM control. First we will test if motors work correctly before adding speed control.
+
+===== Third Consideration: New Component Structure =====
+
+==== Raspberry Pi - Directly Controlled Components ====
+* **DC Motors (L298N)**: Direction and speed control
+* **OV7670 Camera**: Computer vision and object detection
+
+==== ESP32 - Controlled Components (Future Integration) ====
+* **HC-SR04 Sensor**: Obstacle detection (will be migrated from Pi to ESP32)
+* **Servo Motor**: Steering control
+* **IMU Sensor**: Orientation and acceleration
+* **LCD 1602**: Status messages
+* **Audio System**: Microphone and speaker
+* **CAN Bus**: Peripheral communication
+
+===== Fourth Consideration: Proposed Pin Map for Main Components =====
+
+==== Motors (L298N) ====
+* **IN1**: GPIO 17 (Pin 11) - Motor A direction
+* **IN2**: GPIO 27 (Pin 13) - Motor A direction
+* **IN3**: GPIO 22 (Pin 15) - Motor B direction
+* **IN4**: GPIO 23 (Pin 16) - Motor B direction
+* **ENA**: GPIO 18 (Pin 12) - Motor A PWM (future, jumper installed for now)
+* **ENB**: GPIO 25 (Pin 22) - Motor B PWM (future, jumper installed for now)
+* **GND**: Pin 9 and Pin 14 - Common ground with 12V battery
+
+==== Presence Sensor (HC-SR04) ====
+* **TRIG**: GPIO 24 (Pin 18) - Sensor trigger
+* **ECHO**: GPIO 10 (Pin 19) - Sensor return
+* **VCC**: Powered by 5V powerbank (separate)
+* **GND**: Common ground with powerbank
+
+**Note**: This sensor will be migrated to ESP32 after establishing communication between ESP32 and Raspberry Pi.
+
+==== Steering Servo ====
+* **PWM Signal**: GPIO 21 (Pin 40) - Position control
+* **VCC**: Powered by 5V powerbank or 12V battery (via regulator)
+* **GND**: Common ground
+
+**Note**: Integration after motors working and ESP32 communication established.
+
+==== Camera (OV7670) ====
+* **Interface**: CSI (Camera Serial Interface) - Dedicated connector on Raspberry Pi
+* **Power**: 3.3V or 5V (check module specifications)
+* **GND**: Common ground
+
+**Note**: Integration after servo motor working. Camera uses dedicated CSI connector on Raspberry Pi, not standard GPIO.
+
+===== Planned Work Sequence =====
+
+**Phase 1: Motors Working**
+* Test new JGA25 12V motors with 12V battery
+* Verify adequate torque to move car
+* Validate direction control (IN1-IN4)
+* System working without PWM control (ENA/ENB jumpers installed)
+
+**Phase 2: ESP32 ↔ Raspberry Pi Communication**
+* Establish UART communication between ESP32 and Raspberry Pi
+* Test bidirectional data transmission
+* Validate communication protocol
+
+**Phase 3: Presence Sensor Migration to ESP32**
+* Connect HC-SR04 to ESP32
+* Adapt existing code (already functional on Pi) for ESP32
+* Send sensor data via UART to Raspberry Pi
+* Maintain integration with motor system
+
+**Phase 4: Steering Servo Motor**
+* Connect servo motor to ESP32
+* Implement basic steering control
+* Integrate with navigation system
+
+**Phase 5: OV7670 Camera**
+* Connect camera to Raspberry Pi CSI connector
+* Configure basic image capture
+* Implement simple object detection
