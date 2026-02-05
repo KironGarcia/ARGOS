@@ -1,0 +1,1947 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-05T00:00:00+00:00
+
+====== Definitive Raspberry Pi SSH Troubleshooting Guide ======
+Created Wednesday 05 February 2026
+
+===== 🎯 PURPOSE OF THIS GUIDE =====
+
+This is a **comprehensive troubleshooting reference** compiled from all Raspberry Pi SSH connection issues encountered during ARGOS-Car development. Use this guide as your first resource when SSH connectivity fails.
+
+**When to use this guide:**
+* Cannot connect to Raspberry Pi via SSH
+* Pi appears powered on but not responding
+* Network connectivity issues (WiFi, USB gadget, or static IP problems)
+* After SD card modifications or system updates
+* After changing networks or routers
+
+---
+
+===== 📊 QUICK DIAGNOSTIC DECISION TREE =====
+
+```
+Pi won't SSH → LED status?
+             ├── Green LED OFF → Power/SD card problem → Check Section 1
+             ├── Green LED ON → Network issue → Continue below
+             │
+             └── Can ping Pi IP?
+                 ├── YES → SSH service problem → Check Section 2
+                 ├── NO → Network config problem → Check Section 3
+                 │
+                 └── Don't know Pi IP?
+                     ├── Check Section 4 (Network Discovery)
+                     └── Check Section 5 (SD Card Inspection)
+```
+
+---
+
+===== SECTION 1: HARDWARE & POWER ISSUES =====
+
+==== Problem: Raspberry Pi Not Booting ====
+
+=== Symptoms: ===
+* No LED activity at all
+* Green LED does not flash during boot
+* No network presence on any connection
+
+=== Diagnostic Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Check if SD card is detected on your PC
+lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT,MODEL
+
+# Verify SD card partitions
+sudo blkid /dev/sda1 /dev/sda2
+
+# Expected output:
+# /dev/sda1: LABEL="bootfs" TYPE="vfat"
+# /dev/sda2: LABEL="rootfs" TYPE="ext4"
+}}}
+
+=== Solutions: ===
+1. **Reseat SD card**: Remove and reinsert firmly
+2. **Check power supply**: Verify 5V output with multimeter
+3. **Try different USB cable**: Some cables are power-only
+4. **Test SD card on PC**: Mount and verify files are readable
+5. **Last resort**: Reflash SD card with fresh Raspberry Pi OS
+
+---
+
+===== SECTION 2: SSH SERVICE DISABLED =====
+
+==== Problem: SSH Service Not Running on Boot ====
+
+=== Symptoms: ===
+* Pi boots normally (green LED active)
+* Pi visible on network (can ping IP)
+* SSH connection refused or timeout
+* Error: `ssh: connect to host X.X.X.X port 22: Connection refused`
+
+=== Root Cause: ===
+SSH service is disabled by default on Raspberry Pi OS. Requires `/boot/firmware/ssh` file to enable.
+
+=== Diagnostic Commands (on SD card from PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Mount SD card partitions
+sudo mount /dev/sda1 /media/kiron/bootfs
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Check if SSH is enabled
+ls -l /media/kiron/rootfs/boot/firmware/ssh
+
+# If file missing, SSH is disabled
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Enable SSH by creating empty file in boot partition
+sudo touch /media/kiron/bootfs/ssh
+
+# Alternative location (depending on OS version)
+sudo touch /media/kiron/rootfs/boot/firmware/ssh
+
+# Unmount and eject SD card
+sync
+sudo umount /media/kiron/bootfs
+sudo umount /media/kiron/rootfs
+sudo eject /dev/sda
+}}}
+
+=== Verification (after booting Pi): ===
+If you have serial console access:
+{{{code: lang="bash" linenumbers="False"
+# Check SSH service status
+sudo systemctl status ssh
+sudo systemctl status sshd
+
+# Enable SSH permanently
+sudo systemctl enable ssh
+sudo systemctl start ssh
+}}}
+
+**Occurrence in project:**
+* **January 4, 2025** (Tercer_Dia.txt): SSH file missing after unknown system corruption
+* **January 20, 2026** (Connection_Issues_with_PI_Again.txt): First connection attempt, SSH was disabled
+
+---
+
+===== SECTION 3: WIFI CONFIGURATION PROBLEMS =====
+
+==== Problem 3.1: WiFi Hardware Blocked by rfkill ====
+
+=== Symptoms: ===
+* Pi boots normally but never appears on WiFi network
+* Cannot ping any WiFi IP address
+* USB gadget might work, but WiFi doesn't
+* No ARP entry for Pi MAC address
+
+=== Root Cause: ===
+WiFi radio blocked at kernel level by rfkill configuration (`default_state=0`).
+
+=== Diagnostic Commands (on SD card from PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Mount root partition
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Check rfkill configuration
+sudo cat /media/kiron/rootfs/etc/modprobe.d/rfkill_default.conf
+
+# Problem: If you see this
+options rfkill default_state=0  # ← WiFi BLOCKED
+
+# Solution: Should be this
+options rfkill default_state=1  # ← WiFi ENABLED
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Fix rfkill configuration
+sudo sed -i 's/default_state=0/default_state=1/' /media/kiron/rootfs/etc/modprobe.d/rfkill_default.conf
+
+# Or manually edit
+sudo nano /media/kiron/rootfs/etc/modprobe.d/rfkill_default.conf
+# Change: default_state=0 → default_state=1
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+=== Verification (after booting Pi, via serial console): ===
+{{{code: lang="bash" linenumbers="False"
+# Check WiFi block status
+sudo rfkill list wifi
+
+# Expected output:
+# 0: phy0: Wireless LAN
+#     Soft blocked: no
+#     Hard blocked: no
+
+# If blocked, unblock manually
+sudo rfkill unblock wifi
+}}}
+
+**Occurrence in project:**
+* **January 4, 2025** (Tercer_Dia.txt): WiFi hardware blocked after system corruption
+
+---
+
+==== Problem 3.2: NetworkManager Not Managing Interfaces ====
+
+=== Symptoms: ===
+* WiFi profiles exist but never connect
+* `nmcli device status` shows devices as "unmanaged"
+* Pi has WiFi credentials but doesn't attempt connection
+
+=== Root Cause: ===
+NetworkManager configuration set to `managed=false`, preventing it from controlling network interfaces.
+
+=== Diagnostic Commands (on SD card from PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Mount root partition
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Check NetworkManager configuration
+sudo cat /media/kiron/rootfs/etc/NetworkManager/NetworkManager.conf
+
+# Problem indicator:
+[ifupdown]
+managed=false  # ← Interfaces NOT managed
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Edit NetworkManager configuration
+sudo nano /media/kiron/rootfs/etc/NetworkManager/NetworkManager.conf
+
+# Change to:
+[ifupdown]
+managed=true  # ← Interfaces MANAGED
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+=== Verification (after booting Pi, via serial console): ===
+{{{code: lang="bash" linenumbers="False"
+# Check device management status
+sudo nmcli device status
+
+# Expected output: wlan0 should show "connected" or "disconnected"
+# Not "unmanaged"
+
+# Restart NetworkManager if needed
+sudo systemctl restart NetworkManager
+}}}
+
+**Occurrence in project:**
+* **September 4, 2025** (Back_to_Work.txt): NetworkManager not loading profiles
+* **February 5, 2026** (Connection_Issues_with_PI_Again.txt): `managed=false` prevented WiFi connection
+
+---
+
+==== Problem 3.3: WiFi Network Configured as Hidden ====
+
+=== Symptoms: ===
+* Pi has correct WiFi credentials
+* Network is broadcasting (not actually hidden)
+* Pi fails to connect automatically
+
+=== Root Cause: ===
+WiFi connection profile has `hidden=true` setting when network is not hidden.
+
+=== Diagnostic Commands (on SD card from PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Mount root partition
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Check WiFi connection profile
+sudo cat /media/kiron/rootfs/etc/NetworkManager/system-connections/*.nmconnection
+
+# Problem indicator:
+[wifi]
+hidden=true  # ← Remove this if network is not hidden
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Edit WiFi connection profile
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+
+# Remove or change:
+hidden=true  # ← DELETE THIS LINE
+
+# Or set to:
+hidden=false
+
+# Verify permissions (must be 600)
+sudo chmod 600 /media/kiron/rootfs/etc/NetworkManager/system-connections/*.nmconnection
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+**Occurrence in project:**
+* **January 20, 2026** (Connection_Issues_with_PI_Again.txt): Hidden network setting prevented auto-connection
+
+---
+
+==== Problem 3.4: WiFi Password in Encrypted Hash Instead of Plain Text ====
+
+=== Symptoms: ===
+* Pi attempts WiFi connection but fails authentication
+* Correct password was provided during setup
+* Connection profile shows encrypted psk-hash
+
+=== Root Cause: ===
+Some configuration methods store password as hash, which may not work correctly with certain routers or NetworkManager versions.
+
+=== Diagnostic Commands (on SD card from PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Check WiFi connection profile
+sudo cat /media/kiron/rootfs/etc/NetworkManager/system-connections/*.nmconnection
+
+# Problem indicator:
+[wifi-security]
+psk-hash=a1b2c3d4e5f6... (long hex string)  # ← Encrypted
+
+# Solution should use:
+[wifi-security]
+psk=MyActualPassword123  # ← Plain text
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Edit WiFi connection profile
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+
+# Change from:
+[wifi-security]
+psk-hash=a1b2c3d4e5f6...
+
+# To:
+[wifi-security]
+key-mgmt=wpa-psk
+psk=YourActualPassword
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+**Occurrence in project:**
+* **January 20, 2026** (Connection_Issues_with_PI_Again.txt): Hash encryption prevented connection
+
+---
+
+==== Problem 3.5: Static IP in Wrong Network Range ====
+
+=== Symptoms: ===
+* Pi has static IP configured
+* Changed from one network to another (e.g., hotspot to home router)
+* Pi doesn't appear on new network
+* Cannot ping Pi at old static IP
+
+=== Root Cause: ===
+Static IP configured for old network range (e.g., `172.25.54.100`) doesn't match new network range (e.g., `192.168.1.x`).
+
+=== Diagnostic Commands (on your PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Identify your current network range
+ip route show default
+ip addr show | grep -A2 wlan
+
+# Example output:
+# default via 192.168.1.1 dev wlan0
+# inet 192.168.1.180/24 ...
+# Your network is: 192.168.1.0/24
+
+# Check if Pi IP is in same range
+# If Pi configured for 10.x.x.x but network is 192.168.x.x → MISMATCH
+}}}
+
+=== Diagnostic Commands (on SD card from PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Mount root partition
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Check WiFi IP configuration
+sudo cat /media/kiron/rootfs/etc/NetworkManager/system-connections/*.nmconnection
+
+# Look for:
+[ipv4]
+method=manual  # Static IP mode
+address1=172.25.54.100/24,172.25.54.1  # ← Old network range
+}}}
+
+=== Solution 1: Change to DHCP (Recommended): ===
+{{{code: lang="bash" linenumbers="False"
+# Edit connection profile
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+
+# Change IP configuration to automatic:
+[ipv4]
+method=auto  # DHCP will assign IP automatically
+
+[ipv6]
+method=auto
+
+# Remove any static IP lines like:
+# address1=...
+# gateway=...
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+=== Solution 2: Update Static IP to Correct Range: ===
+{{{code: lang="bash" linenumbers="False"
+# Edit connection profile
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+
+# Update to match your network:
+[ipv4]
+method=manual
+address1=192.168.1.203/24,192.168.1.1  # Match your network
+dns=192.168.1.1;8.8.8.8
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+**Occurrence in project:**
+* **September 3, 2025** (Back_to_Work.txt): Multiple static IPs for different networks
+* **February 5, 2026** (Connection_Issues_with_PI_Again.txt): Static IP `172.25.54.x` didn't match Starlink `192.168.1.x`
+
+---
+
+==== Problem 3.6: wpa_supplicant Service Conflict ====
+
+=== Symptoms: ===
+* NetworkManager enabled but WiFi unstable
+* Random disconnections or failure to connect
+* Both NetworkManager and wpa_supplicant running simultaneously
+
+=== Root Cause: ===
+Two network management services competing for WiFi control.
+
+=== Diagnostic Commands (on SD card from PC): ===
+{{{code: lang="bash" linenumbers="False"
+# Mount root partition
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Check for wpa_supplicant service
+ls -l /media/kiron/rootfs/etc/systemd/system/multi-user.target.wants/ | grep wpa
+
+# Problem: If you see these symlinks
+wpa_supplicant.service → ...
+dbus-fi.w1.wpa_supplicant1.service → ...
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Disable wpa_supplicant services
+sudo rm /media/kiron/rootfs/etc/systemd/system/multi-user.target.wants/wpa_supplicant.service
+sudo rm /media/kiron/rootfs/etc/systemd/system/dbus-fi.w1.wpa_supplicant1.service
+
+# Also check for wpa_supplicant configuration files
+sudo ls -la /media/kiron/rootfs/etc/wpa_supplicant/
+
+# If found, can remove or rename as backup
+sudo mv /media/kiron/rootfs/etc/wpa_supplicant/wpa_supplicant.conf /media/kiron/rootfs/etc/wpa_supplicant/wpa_supplicant.conf.backup
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+=== Verification (after booting Pi, via serial console): ===
+{{{code: lang="bash" linenumbers="False"
+# Verify only NetworkManager is managing WiFi
+systemctl status wpa_supplicant  # Should be inactive/disabled
+systemctl status NetworkManager  # Should be active/enabled
+
+# Check WiFi management
+sudo nmcli device status  # wlan0 should be "connected"
+}}}
+
+**Occurrence in project:**
+* **January 4, 2025** (Tercer_Dia.txt): wpa_supplicant conflicts caused connection failures
+
+---
+
+==== Problem 3.7: WiFi Credentials Wrong or Network Unavailable ====
+
+=== Symptoms: ===
+* Pi configured correctly but still doesn't connect
+* SSH worked before, but not anymore
+* No recent SD card modifications
+
+=== Possible Causes: ===
+* WiFi password was changed on router
+* SSID name was changed
+* Router was reset or replaced
+* Network is temporarily down
+* Pi is out of WiFi range
+
+=== Diagnostic Commands (verify network availability): ===
+{{{code: lang="bash" linenumbers="False"
+# On your PC, check if network is visible
+nmcli device wifi list
+
+# Check if you can connect to the network
+ping -c 3 192.168.1.1  # Replace with your router IP
+
+# Scan for Pi MAC address (if you know it)
+sudo arp-scan --localnet | grep -i "b8:27:eb"  # Raspberry Pi OUI
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Mount SD card and update WiFi credentials
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Edit connection profile with correct credentials
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+
+[wifi]
+ssid=CorrectNetworkName
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=CorrectPassword123
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+---
+
+===== SECTION 4: NETWORK DISCOVERY METHODS =====
+
+==== When to Use: ====
+* Pi is on network but you don't know the IP address
+* DHCP assigned new IP after network change
+* Static IP configuration but forgot the address
+
+---
+
+==== Method 4.1: Check Router DHCP Leases (Most Reliable) ====
+
+=== Steps: ===
+1. Access your router admin panel (usually `192.168.1.1` or `192.168.0.1`)
+2. Look for "DHCP Clients" or "Connected Devices" section
+3. Find device named "raspberrypi" or with MAC starting with `b8:27:eb`, `dc:a6:32`, or `e4:5f:01`
+
+---
+
+==== Method 4.2: nmap Network Scan ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Scan entire local network for Raspberry Pi
+sudo nmap -sn 192.168.1.0/24 | grep -B 2 -i "raspberry"
+
+# Alternative: scan with OS detection
+sudo nmap -O 192.168.1.0/24 | grep -B 5 -i "linux"
+
+# If you know Pi MAC address
+sudo nmap -sn 192.168.1.0/24 | grep -B 2 "B8:27:EB"
+}}}
+
+**Note:** Replace `192.168.1.0/24` with your actual network range.
+
+---
+
+==== Method 4.3: ARP Scan (Fast) ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Scan local network ARP table
+sudo arp-scan --localnet
+
+# Filter for Raspberry Pi manufacturer
+sudo arp-scan --localnet | grep -i "Raspberry"
+
+# Look for MAC address starting with:
+# b8:27:eb - Raspberry Pi Foundation
+# dc:a6:32 - Raspberry Pi Trading Ltd
+# e4:5f:01 - Raspberry Pi
+}}}
+
+---
+
+==== Method 4.4: mDNS Discovery (if Avahi enabled) ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Try default hostname
+ping raspberrypi.local
+
+# Try SSH with default hostname
+ssh pi@raspberrypi.local
+
+# Discover mDNS devices on network
+avahi-browse -art | grep -i raspberry
+}}}
+
+**Note:** Only works if Avahi/mDNS is enabled on Pi (usually default).
+
+---
+
+==== Method 4.5: Targeted Ping Sweep ====
+
+=== Script: ===
+{{{code: lang="bash" linenumbers="False"
+# Quick sweep of common IP ranges
+for i in {1..254}; do 
+    ping -c 1 -W 1 192.168.1.$i >/dev/null && echo "FOUND: 192.168.1.$i"
+done
+
+# Target likely DHCP range (100-250)
+for i in {100..250}; do 
+    ping -c 1 -W 1 192.168.1.$i >/dev/null && echo "FOUND: 192.168.1.$i"
+done
+}}}
+
+---
+
+==== Method 4.6: Check Local ARP Cache ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# View ARP cache (shows recently contacted IPs)
+arp -a
+
+# Filter for Raspberry Pi MAC
+arp -a | grep -i "b8:27:eb\|dc:a6:32\|e4:5f:01"
+
+# Show ARP table with more details
+ip neigh show
+}}}
+
+---
+
+===== SECTION 5: SD CARD INSPECTION & REPAIR =====
+
+==== When to Use: ====
+* Pi won't boot or network doesn't work
+* Need to modify configuration files directly
+* Verify or fix boot configuration
+
+---
+
+==== Step 5.1: Mount SD Card Partitions ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Identify SD card device
+lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT,MODEL
+
+# Expected output:
+# sda                       # SD card device
+# ├─sda1  bootfs  vfat      # Boot partition (FAT32)
+# └─sda2  rootfs  ext4      # Root partition (ext4)
+
+# Create mount points
+sudo mkdir -p /media/kiron/bootfs
+sudo mkdir -p /media/kiron/rootfs
+
+# Mount boot partition (FAT32)
+sudo mount /dev/sda1 /media/kiron/bootfs
+
+# Mount root partition (ext4)
+sudo mount /dev/sda2 /media/kiron/rootfs
+}}}
+
+---
+
+==== Step 5.2: Verify Critical Boot Files ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Check boot configuration (should NOT be corrupted)
+sudo cat /media/kiron/bootfs/config.txt | head -20
+
+# Warning signs of corruption:
+# - File full of NULL bytes (^@^@^@)
+# - Missing standard configuration lines
+# - Garbled text
+
+# Check cmdline.txt (MUST BE SINGLE LINE)
+sudo cat /media/kiron/bootfs/cmdline.txt
+
+# Verify proper spacing (common error):
+# WRONG: ...rootwaitmodules-load=dwc2,g_ether...
+# RIGHT: ...rootwait modules-load=dwc2,g_ether...
+#                   ^ space is critical
+
+# Check if SSH enabled
+ls -l /media/kiron/bootfs/ssh
+ls -l /media/kiron/rootfs/boot/firmware/ssh
+}}}
+
+---
+
+==== Step 5.3: Inspect NetworkManager Profiles ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# List all connection profiles
+ls -la /media/kiron/rootfs/etc/NetworkManager/system-connections/
+
+# Expected permissions: 600 (rw-------)
+# Expected owner: root:root
+
+# View profile contents
+sudo cat /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+
+# Check for common issues:
+# 1. hidden=true (when network is not hidden)
+# 2. psk-hash instead of plain psk
+# 3. method=manual with wrong IP range
+# 4. Missing or incorrect SSID
+}}}
+
+---
+
+==== Step 5.4: Check NetworkManager Configuration ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Check NetworkManager main config
+sudo cat /media/kiron/rootfs/etc/NetworkManager/NetworkManager.conf
+
+# MUST have:
+[ifupdown]
+managed=true  # ← CRITICAL
+
+# Check for conflicting services
+ls -l /media/kiron/rootfs/etc/systemd/system/multi-user.target.wants/ | grep -E "network|dhcp|wpa"
+
+# Should see:
+# NetworkManager.service → ENABLED ✓
+
+# Should NOT see:
+# wpa_supplicant.service → DISABLED ✗
+# dhcpcd.service → DISABLED ✗
+}}}
+
+---
+
+==== Step 5.5: Verify SSH Service ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Check SSH service symlinks
+ls -l /media/kiron/rootfs/etc/systemd/system/multi-user.target.wants/ | grep ssh
+
+# Should see:
+# ssh.service → /lib/systemd/system/ssh.service
+
+# Check SSH configuration
+sudo cat /media/kiron/rootfs/etc/ssh/sshd_config | grep -E "^(Port|PermitRootLogin|PubkeyAuthentication|PasswordAuthentication)"
+
+# Verify SSH host keys exist
+ls -l /media/kiron/rootfs/etc/ssh/ssh_host_*
+}}}
+
+---
+
+==== Step 5.6: Check File System Integrity ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Check for corrupted critical files
+sudo cat /media/kiron/rootfs/etc/hostname  # Should be "raspberrypi"
+sudo cat /media/kiron/rootfs/etc/hosts     # Should have basic entries
+
+# Check for disk errors (unmount first)
+sudo umount /media/kiron/bootfs
+sudo umount /media/kiron/rootfs
+
+# Run filesystem check (CAREFUL: destructive if not unmounted)
+sudo fsck -n /dev/sda1  # Boot partition (read-only check)
+sudo fsck -n /dev/sda2  # Root partition (read-only check)
+
+# If errors found, run repair (use with caution)
+sudo fsck -y /dev/sda2
+}}}
+
+---
+
+==== Step 5.7: Safe Unmounting ====
+
+=== Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Always sync before unmounting
+sync
+
+# Navigate away from mount points
+cd ~
+
+# Unmount partitions
+sudo umount /media/kiron/bootfs
+sudo umount /media/kiron/rootfs
+
+# Safely eject SD card
+sudo eject /dev/sda
+
+# Verify unmounted
+lsblk | grep sda  # Should show no mount points
+}}}
+
+---
+
+===== SECTION 6: BOOT FILE CORRUPTION ISSUES =====
+
+==== Problem 6.1: config.txt File Corrupted ====
+
+=== Symptoms: ===
+* Pi won't boot or boots with errors
+* USB gadget not working
+* UART console not available
+* config.txt contains NULL bytes (^@^@^@)
+
+=== Diagnostic Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Mount boot partition
+sudo mount /dev/sda1 /media/kiron/bootfs
+
+# Check for corruption
+sudo cat /media/kiron/bootfs/config.txt | head -20
+sudo hexdump -C /media/kiron/bootfs/config.txt | head -20
+
+# Corrupted file will show:
+# 00000000  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+}}}
+
+=== Solution: Rebuild config.txt ====
+
+{{{code: lang="bash" linenumbers="False"
+# Backup corrupted file
+sudo mv /media/kiron/bootfs/config.txt /media/kiron/bootfs/config.txt.corrupted
+
+# Create new config.txt with standard Raspberry Pi Zero W settings
+sudo nano /media/kiron/bootfs/config.txt
+}}}
+
+**Paste this standard configuration:**
+{{{code: lang="ini" linenumbers="False"
+# Raspberry Pi Zero W Configuration
+
+[all]
+# Enable audio
+dtparam=audio=on
+
+# Enable I2C
+dtparam=i2c_arm=on
+
+# Enable SPI
+dtparam=spi=on
+
+# Enable UART for serial console
+enable_uart=1
+
+# USB Gadget Mode (Ethernet over USB)
+dtoverlay=dwc2
+
+# Camera support
+start_x=1
+gpu_mem=128
+
+# Disable WiFi power management (prevents dropouts)
+dtparam=wifi_pwr_mgmt_off=on
+
+# Boot configuration
+arm_freq=1000
+core_freq=400
+sdram_freq=450
+over_voltage=0
+}}}
+
+{{{code: lang="bash" linenumbers="False"
+# Save and unmount
+sync
+sudo umount /media/kiron/bootfs
+}}}
+
+**Occurrence in project:**
+* **February 5, 2026** (Connection_Issues_with_PI_Again.txt): config.txt corrupted with NULL bytes
+
+---
+
+==== Problem 6.2: cmdline.txt Malformed ====
+
+=== Symptoms: ===
+* Pi boots but USB gadget doesn't work
+* Kernel modules not loading
+* Boot process shows errors
+
+=== Root Cause: ===
+Missing space between `rootwait` and `modules-load` parameters. This is a **recurring issue**.
+
+=== Diagnostic Commands: ===
+{{{code: lang="bash" linenumbers="False"
+# Mount boot partition
+sudo mount /dev/sda1 /media/kiron/bootfs
+
+# Check cmdline.txt (should be ONE SINGLE LINE)
+sudo cat /media/kiron/bootfs/cmdline.txt
+
+# Problem: Missing space
+rootwaitmodules-load=dwc2,g_ether
+#        ^ NO SPACE = ERROR
+
+# Correct: Space present
+rootwait modules-load=dwc2,g_ether
+#        ^ SPACE = CORRECT
+}}}
+
+=== Solution: ===
+{{{code: lang="bash" linenumbers="False"
+# Backup original
+sudo cp /media/kiron/bootfs/cmdline.txt /media/kiron/bootfs/cmdline.txt.backup
+
+# Edit cmdline.txt
+sudo nano /media/kiron/bootfs/cmdline.txt
+}}}
+
+**Standard cmdline.txt for Raspberry Pi Zero W with USB gadget:**
+{{{code: lang="text" linenumbers="False"
+console=serial0,115200 console=tty1 root=PARTUUID=xxxxxxxx-02 rootfstype=ext4 fsck.repair=yes rootwait modules-load=dwc2,g_ether quiet splash
+}}}
+
+**Critical points:**
+* ENTIRE configuration on ONE SINGLE LINE (no line breaks)
+* SPACE before `modules-load`
+* Replace `PARTUUID=xxxxxxxx-02` with your actual root partition UUID
+
+{{{code: lang="bash" linenumbers="False"
+# Find your root partition UUID
+sudo blkid /dev/sda2 | grep -o 'PARTUUID="[^"]*"'
+
+# Save and unmount
+sync
+sudo umount /media/kiron/bootfs
+}}}
+
+**Occurrence in project:**
+* **January 4, 2025** (Tercer_Dia.txt): Missing space between rootwait and modules-load
+* **February 5, 2026** (Connection_Issues_with_PI_Again.txt): Same error occurred again
+
+---
+
+===== SECTION 7: USB GADGET CONNECTION ISSUES =====
+
+==== Problem: USB Gadget Interface Not Working ====
+
+=== Symptoms: ===
+* Pi boots normally
+* WiFi works, but USB connection doesn't
+* Expected IP `192.168.7.2` unreachable
+* USB interface `usb0` not appearing on host PC
+
+=== Root Causes: ===
+1. USB gadget modules not loaded (cmdline.txt error)
+2. USB gadget interface not configured
+3. Host PC doesn't have correct IP assigned
+4. Wrong USB port used (data port vs power-only port)
+
+---
+
+==== Solution 7.1: Verify USB Gadget Configuration (on Pi) ====
+
+Via SSH or serial console:
+{{{code: lang="bash" linenumbers="False"
+# Check if USB gadget modules loaded
+lsmod | grep g_ether
+lsmod | grep dwc2
+
+# Check if usb0 interface exists
+ip link show usb0
+
+# Check NetworkManager connection
+sudo nmcli connection show usb-gadget
+sudo nmcli device status | grep usb
+
+# Manually bring up interface
+sudo nmcli connection up usb-gadget
+}}}
+
+---
+
+==== Solution 7.2: Configure USB Gadget (on SD card) ====
+
+{{{code: lang="bash" linenumbers="False"
+# Mount root partition
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Create USB gadget NetworkManager connection
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/usb-gadget.nmconnection
+}}}
+
+**Content:**
+{{{code: lang="ini" linenumbers="False"
+[connection]
+id=usb-gadget
+type=ethernet
+interface-name=usb0
+autoconnect=yes
+autoconnect-priority=10
+
+[ipv4]
+method=manual
+address1=192.168.7.2/24
+
+[ipv6]
+method=disabled
+}}}
+
+{{{code: lang="bash" linenumbers="False"
+# Set correct permissions
+sudo chmod 600 /media/kiron/rootfs/etc/NetworkManager/system-connections/usb-gadget.nmconnection
+sudo chown root:root /media/kiron/rootfs/etc/NetworkManager/system-connections/usb-gadget.nmconnection
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+---
+
+==== Solution 7.3: Configure Host PC for USB Gadget ====
+
+{{{code: lang="bash" linenumbers="False"
+# Connect Pi to PC via USB data port
+
+# Find USB network interface (usually last one created)
+ip link
+
+# Look for new interface (e.g., enp0s20f0u1, usb0, eth1)
+
+# Assign IP to host side
+sudo ip addr add 192.168.7.1/24 dev <interface_name>
+
+# Example:
+sudo ip addr add 192.168.7.1/24 dev enp0s20f0u1
+
+# Verify connection
+ping 192.168.7.2
+
+# Connect via SSH
+ssh pi@192.168.7.2
+}}}
+
+---
+
+==== Solution 7.4: Create systemd Service for Auto-Connect ====
+
+{{{code: lang="bash" linenumbers="False"
+# Mount root partition
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Create systemd service
+sudo nano /media/kiron/rootfs/etc/systemd/system/usb-gadget-autoconnect.service
+}}}
+
+**Content:**
+{{{code: lang="ini" linenumbers="False"
+[Unit]
+Description=Auto-activate USB gadget network
+After=network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nmcli con up "usb-gadget"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+}}}
+
+{{{code: lang="bash" linenumbers="False"
+# Enable service
+sudo ln -s /etc/systemd/system/usb-gadget-autoconnect.service /media/kiron/rootfs/etc/systemd/system/multi-user.target.wants/usb-gadget-autoconnect.service
+
+# Save and unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+**Occurrence in project:**
+* **September 3, 2025** (Back_to_Work.txt): USB connection not working, added as backup connection
+* **January 4, 2025** (Tercer_Dia.txt): USB gadget interface configuration issues
+
+---
+
+===== SECTION 8: SERIAL CONSOLE ACCESS (Emergency Backup) =====
+
+==== When to Use: ====
+* All network connections failed (WiFi, USB gadget)
+* Need direct access to Pi for debugging
+* First-time setup verification
+
+---
+
+==== Hardware Requirements: ====
+* USB-to-TTL serial adapter (3.3V logic level)
+* 3 jumper wires (Female-Female)
+
+---
+
+==== Step 8.1: Enable UART in Boot Configuration ====
+
+{{{code: lang="bash" linenumbers="False"
+# Mount boot partition
+sudo mount /dev/sda1 /media/kiron/bootfs
+
+# Edit config.txt
+sudo nano /media/kiron/bootfs/config.txt
+
+# Add this line (if not present):
+enable_uart=1
+
+# Edit cmdline.txt to add console
+sudo nano /media/kiron/bootfs/cmdline.txt
+
+# Add these parameters to the single line:
+console=serial0,115200 console=tty1 kgdboc=serial0,115200
+
+# Save and unmount
+sync
+sudo umount /media/kiron/bootfs
+}}}
+
+---
+
+==== Step 8.2: Physical Connection ====
+
+**Pin Mapping:**
+{{{code: lang="text" linenumbers="False"
+USB-TTL Adapter  →  Raspberry Pi Zero W
+─────────────────────────────────────────
+GND (Black)      →  Pin 6 (GND)
+TXD (Green)      →  Pin 10 - GPIO15 (RXD)
+RXD (White)      →  Pin 8  - GPIO14 (TXD)
+VCC (Red)        →  DO NOT CONNECT (Pi has separate power)
+}}}
+
+**Warning:** Do NOT connect VCC from USB-TTL to Pi. Power Pi separately via micro USB.
+
+---
+
+==== Step 8.3: Connect via Serial Terminal ====
+
+**On Linux:**
+{{{code: lang="bash" linenumbers="False"
+# Find serial device
+ls /dev/ttyUSB*  # Usually /dev/ttyUSB0
+
+# Give permissions
+sudo usermod -a -G dialout $USER  # Logout/login required
+
+# Connect with screen
+screen /dev/ttyUSB0 115200
+
+# Or use minicom
+minicom -D /dev/ttyUSB0 -b 115200
+
+# Or use picocom
+picocom /dev/ttyUSB0 -b 115200
+}}}
+
+**On Windows:**
+* Use PuTTY: Connection type "Serial", Speed 115200, COM port (check Device Manager)
+
+**On macOS:**
+{{{code: lang="bash" linenumbers="False"
+# Find device
+ls /dev/tty.usb*
+
+# Connect
+screen /dev/tty.usbserial 115200
+}}}
+
+---
+
+==== Step 8.4: Serial Console Troubleshooting Commands ====
+
+Once connected via serial console:
+
+{{{code: lang="bash" linenumbers="False"
+# Login: pi
+# Password: your password
+
+# Check network status
+sudo nmcli device status
+sudo nmcli connection show
+
+# Check WiFi status
+sudo rfkill list wifi
+ip link show wlan0
+
+# Restart NetworkManager
+sudo systemctl restart NetworkManager
+
+# Bring up WiFi connection manually
+sudo nmcli connection up preconfigured
+sudo nmcli connection up KironWifi
+sudo nmcli connection up iotrac
+
+# Check IP address
+ip addr show
+
+# Enable SSH if disabled
+sudo systemctl enable ssh
+sudo systemctl start ssh
+
+# Check logs
+sudo journalctl -u NetworkManager -b --no-pager | tail -100
+sudo journalctl -b | grep -i "wifi\|network\|ssh"
+}}}
+
+**Occurrence in project:**
+* **September 4, 2025** (Back_to_Work.txt): Serial console used for emergency diagnostics
+* **January 4, 2025** (Tercer_Dia.txt): UART enabled as backup access method
+
+---
+
+===== SECTION 9: MULTIPLE WIFI NETWORKS & CONNECTION PRIORITY =====
+
+==== Scenario: Managing Multiple Network Profiles ====
+
+Throughout ARGOS development, Pi connected to multiple networks:
+* **iotrac**: Primary WiFi (no internet) - `192.168.0.2`
+* **KironWifi**: Laptop hotspot (with internet) - `10.247.104.100`
+* **internet**: Home WiFi - `192.168.1.48`
+* **cellphone**: Mobile hotspot - `192.168.43.100`
+* **KironStarlink**: Starlink router - `192.168.1.203`
+* **usb-gadget**: USB connection - `192.168.7.2`
+
+---
+
+==== Step 9.1: Add New WiFi Connection (via nmcli on Pi) ====
+
+{{{code: lang="bash" linenumbers="False"
+# Add WiFi connection
+sudo nmcli con add type wifi ifname wlan0 con-name "MyNetwork" ssid "MySSID"
+
+# Set password
+sudo nmcli con modify "MyNetwork" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "MyPassword123"
+
+# Option A: Use DHCP (recommended)
+sudo nmcli con modify "MyNetwork" ipv4.method auto
+sudo nmcli con modify "MyNetwork" connection.autoconnect yes
+
+# Option B: Use static IP
+sudo nmcli con modify "MyNetwork" ipv4.addresses "192.168.1.100/24"
+sudo nmcli con modify "MyNetwork" ipv4.gateway "192.168.1.1"
+sudo nmcli con modify "MyNetwork" ipv4.dns "192.168.1.1,8.8.8.8"
+sudo nmcli con modify "MyNetwork" ipv4.method manual
+sudo nmcli con modify "MyNetwork" connection.autoconnect yes
+
+# Set connection priority (higher = preferred)
+sudo nmcli con modify "MyNetwork" connection.autoconnect-priority 100
+
+# Activate connection
+sudo nmcli con up "MyNetwork"
+}}}
+
+---
+
+==== Step 9.2: Set Connection Priorities ====
+
+{{{code: lang="bash" linenumbers="False"
+# Set priorities (higher number = higher priority)
+sudo nmcli con modify "KironStarlink" connection.autoconnect-priority 100  # First choice
+sudo nmcli con modify "KironWifi" connection.autoconnect-priority 90       # Second choice
+sudo nmcli con modify "iotrac" connection.autoconnect-priority 50          # Third choice
+sudo nmcli con modify "internet" connection.autoconnect-priority 30        # Fourth choice
+sudo nmcli con modify "cellphone" connection.autoconnect-priority 20       # Fifth choice
+sudo nmcli con modify "usb-gadget" connection.autoconnect-priority 10      # Lowest priority
+
+# View current connections and priorities
+sudo nmcli -f NAME,TYPE,AUTOCONNECT,AUTOCONNECT-PRIORITY con show
+}}}
+
+---
+
+==== Step 9.3: SSH Configuration for Multiple Networks ====
+
+Create SSH config file on your PC for easy access:
+
+{{{code: lang="bash" linenumbers="False"
+# Edit SSH config
+nano ~/.ssh/config
+}}}
+
+**Content:**
+{{{code: lang="ssh-config" linenumbers="False"
+# Raspberry Pi Starlink connection (current)
+Host raspi
+    Hostname 192.168.1.203
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi KironWifi connection
+Host raspi-kiron
+    Hostname 10.247.104.100
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi iotrac connection
+Host raspi-iotrac
+    Hostname 192.168.0.2
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi internet connection
+Host raspi-internet
+    Hostname 192.168.1.48
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi cellphone connection
+Host raspi-cell
+    Hostname 192.168.43.100
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi USB connection
+Host raspi-usb
+    Hostname 192.168.7.2
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+
+# Raspberry Pi via mDNS (auto-discovery)
+Host raspi-mdns
+    Hostname raspberrypi.local
+    User pi
+    IdentityFile ~/.ssh/id_rsa
+}}}
+
+**Usage:**
+{{{code: lang="bash" linenumbers="False"
+# Connect using alias (tries first working connection)
+ssh raspi
+ssh raspi-kiron
+ssh raspi-iotrac
+ssh raspi-usb
+}}}
+
+**Occurrence in project:**
+* **September 3, 2025** (Back_to_Work.txt): Multiple WiFi profiles configured
+* **August 28, 2025** (Raspberry_PI_Zero_W.txt): Initial multi-network setup
+
+---
+
+===== SECTION 10: WHEN ALL ELSE FAILS - REFLASH DECISION GUIDE =====
+
+==== When to Consider Reflashing SD Card: ====
+
+After attempting fixes in this guide, if you still experience:
+
+✓ **Hardware confirmed functional** (Pi boots, green LED active)  
+✓ **All software fixes attempted** (SSH enabled, WiFi configured, NetworkManager checked)  
+✓ **No network presence detected** (cannot ping, not in ARP table, not in router DHCP list)  
+✓ **File-level inspection shows multiple corrupted files**  
+✓ **Time constraints** require quick resolution  
+
+→ **Consider reflashing as faster solution than continued debugging**
+
+---
+
+==== Reflash Decision Flowchart: ====
+
+```
+Can you access Pi via ANY method?
+├── YES → Continue with file-level fixes (Sections 1-9)
+└── NO → Have you tried serial console? (Section 8)
+          ├── NO → Try serial console first
+          └── YES → Is serial console working?
+                    ├── YES → Continue debugging (system not deeply corrupted)
+                    └── NO → REFLASH RECOMMENDED
+```
+
+---
+
+==== Pre-Reflash Checklist: ====
+
+**1. Backup important files:**
+{{{code: lang="bash" linenumbers="False"
+# Mount SD card on PC
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Backup your project code
+mkdir -p ~/argos_backup/$(date +%Y%m%d)
+cp -r /media/kiron/rootfs/home/pi/src ~/argos_backup/$(date +%Y%m%d)/
+
+# Backup NetworkManager profiles (for reference)
+sudo cp /media/kiron/rootfs/etc/NetworkManager/system-connections/* ~/argos_backup/$(date +%Y%m%d)/
+
+# Backup SSH keys (if custom)
+sudo cp -r /media/kiron/rootfs/home/pi/.ssh ~/argos_backup/$(date +%Y%m%d)/
+
+# Unmount
+sync
+sudo umount /media/kiron/rootfs
+}}}
+
+**2. Document current working configuration:**
+* WiFi SSID and passwords
+* Static IP addresses used
+* SSH key locations
+* Connection priorities
+* Custom configurations
+
+---
+
+==== Reflash Process: ====
+
+**1. Download Raspberry Pi OS:**
+* Use official Raspberry Pi Imager: https://www.raspberrypi.com/software/
+* Recommended: "Raspberry Pi OS Lite" (no desktop) for embedded projects
+
+**2. Flash SD card with pre-configuration:**
+* Click gear icon (⚙️) for advanced options
+* Enable SSH (use password or public key)
+* Configure WiFi (SSID, password, country)
+* Set hostname (e.g., "raspberrypi")
+* Set username and password
+
+**3. First boot verification:**
+{{{code: lang="bash" linenumbers="False"
+# Wait 60-90 seconds for first boot
+
+# Find Pi on network (using configured WiFi)
+sudo nmap -sn 192.168.1.0/24 | grep -B 2 -i raspberry
+
+# Or check router DHCP leases
+
+# Connect via SSH
+ssh pi@<discovered_ip>
+
+# Verify system
+uname -a
+ip addr show
+sudo nmcli device status
+}}}
+
+**4. Restore configurations:**
+{{{code: lang="bash" linenumbers="False"
+# Copy project code back
+scp -r ~/argos_backup/$(date +%Y%m%d)/src/ pi@<ip>:~/
+
+# Restore SSH keys if needed
+scp -r ~/argos_backup/$(date +%Y%m%d)/.ssh/ pi@<ip>:~/
+
+# Reconfigure additional WiFi networks
+sudo nmcli con add type wifi ifname wlan0 con-name "iotrac" ssid "iotrac"
+sudo nmcli con modify "iotrac" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "password"
+# ... (repeat for each network)
+}}}
+
+**Occurrence in project:**
+* **January 4, 2025** (Tercer_Dia.txt): Deep system corruption required reflash after exhaustive debugging
+
+---
+
+===== SECTION 11: PROJECT-SPECIFIC NETWORK HISTORY =====
+
+==== Timeline of Connection Issues: ====
+
+| Date | Issue | Root Cause | Solution | File Reference |
+|------|-------|------------|----------|----------------|
+| **Aug 28, 2025** | Initial setup | N/A | Configured iotrac and internet WiFi | Raspberry_PI_Zero_W.txt |
+| **Sep 3, 2025** | USB not working | USB gadget not configured | Added USB gadget NetworkManager profile | Back_to_Work.txt |
+| **Sep 4, 2025** | NetworkManager not loading | managed=false | Changed to managed=true | Back_to_Work.txt |
+| **Jan 4, 2025** | Total network failure | SSH disabled, WiFi blocked, wpa_supplicant conflict | Fixed 3 issues, but still failed → Reflashed | Tercer_Dia.txt |
+| **Jan 4, 2025** | Post-reflash discovery | DHCP assigned unknown IP | Used ping sweep to find 10.105.186.176 | Tercer_Dia.txt |
+| **Jan 20, 2026** | Hotspot connection fail | SSH disabled, hidden=true, psk hash, wrong IP range | Fixed config files via SD card | Connection_Issues_with_PI_Again.txt |
+| **Feb 5, 2026** | Starlink connection fail | managed=false, config.txt corrupted, cmdline.txt malformed, wrong IP range | Rebuilt boot files, changed to DHCP | Connection_Issues_with_PI_Again.txt |
+
+---
+
+==== Current Working Configuration (as of Feb 5, 2026): ====
+
+**Network:** Starlink (KironStarlink)  
+**IP Assignment:** DHCP automatic  
+**Current IP:** 192.168.1.203  
+**SSH:** Enabled and functional  
+**NetworkManager:** managed=true  
+**WiFi:** Unblocked (rfkill default_state=1)  
+**Boot files:** Repaired (config.txt rebuilt, cmdline.txt fixed)  
+
+---
+
+===== SECTION 12: QUICK REFERENCE COMMAND CHEATSHEET =====
+
+==== On Your PC (Troubleshooting from Outside): ====
+
+{{{code: lang="bash" linenumbers="False"
+# Find your network range
+ip route show default
+
+# Scan for Pi on network
+sudo nmap -sn 192.168.1.0/24 | grep -B 2 -i raspberry
+
+# Quick ARP scan
+sudo arp-scan --localnet | grep -i "b8:27:eb\|dc:a6:32\|e4:5f:01"
+
+# Try mDNS
+ping raspberrypi.local
+
+# Mount SD card
+sudo mount /dev/sda1 /media/kiron/bootfs
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Check WiFi config
+sudo cat /media/kiron/rootfs/etc/NetworkManager/system-connections/*.nmconnection
+
+# Check NetworkManager
+sudo cat /media/kiron/rootfs/etc/NetworkManager/NetworkManager.conf
+
+# Enable SSH
+sudo touch /media/kiron/bootfs/ssh
+
+# Unmount safely
+sync && sudo umount /media/kiron/bootfs && sudo umount /media/kiron/rootfs && sudo eject /dev/sda
+}}}
+
+---
+
+==== On Pi (via SSH or Serial Console): ====
+
+{{{code: lang="bash" linenumbers="False"
+# Check network status
+sudo nmcli device status
+sudo nmcli connection show
+ip addr show
+
+# Check WiFi
+sudo rfkill list wifi
+iwconfig wlan0
+
+# Restart NetworkManager
+sudo systemctl restart NetworkManager
+
+# Bring up connection
+sudo nmcli con up preconfigured
+
+# Check SSH status
+sudo systemctl status ssh
+
+# View logs
+sudo journalctl -u NetworkManager -b --no-pager | tail -50
+sudo journalctl -b | grep -i "ssh\|wifi\|network"
+
+# System info
+hostname -I  # Show all IP addresses
+ip route show  # Show routing table
+cat /etc/os-release  # OS version
+}}}
+
+---
+
+===== APPENDIX A: RASPBERRY PI MAC ADDRESS PREFIXES =====
+
+When scanning network or checking ARP tables, look for these MAC address prefixes:
+
+* `b8:27:eb` - Raspberry Pi Foundation (older models)
+* `dc:a6:32` - Raspberry Pi Trading Ltd (newer models)
+* `e4:5f:01` - Raspberry Pi (recent models)
+* `d8:3a:dd` - Raspberry Pi (some Zero W models)
+
+**Example:**
+```
+b8:27:eb:xx:xx:xx → Definitely a Raspberry Pi
+```
+
+---
+
+===== APPENDIX B: COMMON ROUTER DEFAULT GATEWAYS =====
+
+If you don't know your router IP:
+
+* `192.168.1.1` - Most common (Linksys, ASUS, TP-Link, etc.)
+* `192.168.0.1` - D-Link, Netgear
+* `192.168.2.1` - Some ISP routers
+* `10.0.0.1` - Apple AirPort, some Comcast
+* `192.168.100.1` - Some fiber optic routers
+
+**Find yours:**
+{{{code: lang="bash" linenumbers="False"
+ip route show default | grep -oP '(?<=via )\S+'
+}}}
+
+---
+
+===== APPENDIX C: EMERGENCY RECOVERY SD CARD =====
+
+**Recommendation:** Keep a second SD card with fresh Raspberry Pi OS configured with:
+* SSH enabled
+* Your primary WiFi credentials
+* DHCP enabled (no static IP)
+* Basic tools installed (vim, htop, etc.)
+
+**Benefits:**
+* Quick swap if main SD card fails
+* Test if problem is SD card or hardware
+* Reference for comparing configurations
+
+---
+
+===== CONCLUSION =====
+
+This guide compiles **all SSH connection issues encountered** during ARGOS-Car development from August 2025 to February 2026. Use this as your primary troubleshooting reference.
+
+**Key Takeaways:**
+
+1. **Most common issues:**
+   - SSH disabled (missing `/boot/firmware/ssh`)
+   - NetworkManager `managed=false`
+   - Wrong static IP range after network change
+   - `cmdline.txt` missing space (recurring bug)
+
+2. **Best practice:**
+   - Use DHCP instead of static IPs (more flexible)
+   - Keep multiple network profiles with priorities
+   - Enable serial console as backup access
+   - Maintain configuration backups
+
+3. **When to reflash:**
+   - Multiple corrupted files detected
+   - All fixes attempted without success
+   - Time constraints require quick solution
+
+4. **Prevention:**
+   - Always unmount SD card properly (`sync` before `umount`)
+   - Keep backup SD card with working configuration
+   - Document working configurations
+   - Test configuration changes before deploying
+
+**Last Updated:** February 5, 2026  
+**Project:** ARGOS-Car Development  
+**Author:** Compiled from project documentation
+
+---
+
+===== SECTION 13: COMPLETE IMAGE BACKUP & RESTORATION =====
+
+==== Ultimate Recovery Solution: Full SD Card Image ====
+
+This is the **MOST RELIABLE** recovery method. When all troubleshooting fails, restoring a complete image brings the Pi back to a known working state in 15 minutes.
+
+---
+
+==== Creating the Backup Image (One Time Setup) ====
+
+**When to do this:** When your Pi is working perfectly (like now with Starlink connection established).
+
+**Requirements:**
+* SD card reader/adapter
+* 15-20GB free space on your PC
+* 30 minutes total time
+
+**Backup Location:** `~/Cursor/projeto-argos/ARGOS/argos-car/backups/`
+
+---
+
+=== Step-by-Step Backup Process: ===
+
+**1. Shutdown Pi correctly:**
+{{{code: lang="bash" linenumbers="False"
+# From your PC (replace with your Pi's hostname or IP)
+ssh pi@argos.local "sudo shutdown -h now"
+
+# OR
+ssh pi@192.168.1.203 "sudo shutdown -h now"
+
+# Wait 20 seconds for complete shutdown (LED stops blinking)
+}}}
+
+**2. Remove SD card from Pi and connect to PC**
+
+**3. Identify SD card device:**
+{{{code: lang="bash" linenumbers="False"
+lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT
+
+# Look for your SD card (usually 14-16GB)
+# Common device names: /dev/sda, /dev/sdb, /dev/mmcblk0
+# IMPORTANT: Device should NOT be mounted (no MOUNTPOINT)
+}}}
+
+**4. Create backup directory:**
+{{{code: lang="bash" linenumbers="False"
+mkdir -p ~/Cursor/projeto-argos/ARGOS/argos-car/backups
+cd ~/Cursor/projeto-argos/ARGOS/argos-car/backups
+}}}
+
+**5. Create complete image (15-20 minutes):**
+{{{code: lang="bash" linenumbers="False"
+# Replace /dev/sda with YOUR device from step 3
+sudo dd if=/dev/sda of=argos_pi_backup_$(date +%Y%m%d).img bs=4M status=progress conv=fsync
+
+# You'll see progress like:
+# 524288000 bytes (524 MB) copied, 30 s, 17.5 MB/s
+# 1048576000 bytes (1.0 GB) copied, 60 s, 17.5 MB/s
+# ...continues until complete
+}}}
+
+**6. Verify backup was created:**
+{{{code: lang="bash" linenumbers="False"
+ls -lh argos_pi_backup_*.img
+
+# Should show: ~15GB file
+# Example: -rw-r--r-- 1 root root 15G Feb 5 11:49 argos_pi_backup_20260205.img
+
+# Verify file structure
+file argos_pi_backup_*.img
+
+# Should show: DOS/MBR boot sector (confirms valid image)
+}}}
+
+**7. Compress to save space (optional but recommended):**
+{{{code: lang="bash" linenumbers="False"
+# Compress with maximum compression (5-10 minutes)
+gzip -9 argos_pi_backup_*.img
+
+# Verify compressed file
+ls -lh argos_pi_backup_*.img.gz
+
+# Compressed size: ~700MB-2GB (vs 15GB original)
+# Example: -rw-r--r-- 1 kiron kiron 760M Feb 5 11:49 argos_pi_backup_20260205.img.gz
+}}}
+
+---
+
+==== Restoring the Backup Image (Emergency Recovery) ====
+
+**When to use this:**
+* Pi won't boot or connect after trying all troubleshooting steps
+* SD card corruption detected
+* Faster than manual fixes (15 minutes vs hours of debugging)
+* Need to return to known working state
+
+---
+
+=== Step-by-Step Restoration Process: ===
+
+**1. Shutdown Pi (if still accessible):**
+{{{code: lang="bash" linenumbers="False"
+ssh pi@argos.local "sudo shutdown -h now"
+
+# OR if SSH not working, just power off Pi
+# Wait 10 seconds, then disconnect power
+}}}
+
+**2. Remove SD card from Pi and connect to PC**
+
+**3. Identify SD card device:**
+{{{code: lang="bash" linenumbers="False"
+lsblk
+
+# Find your SD card (14-16GB)
+# CRITICAL: Double-check device name!
+# Wrong device = data loss on your PC!
+}}}
+
+**4. Navigate to backup directory:**
+{{{code: lang="bash" linenumbers="False"
+cd ~/Cursor/projeto-argos/ARGOS/argos-car/backups
+ls -lh argos_pi_backup_*.img*
+}}}
+
+**5. Restore image:**
+
+**Option A: Restore from uncompressed image (.img):**
+{{{code: lang="bash" linenumbers="False"
+# REPLACE /dev/sda with YOUR device from step 3
+sudo dd if=argos_pi_backup_20260205.img of=/dev/sda bs=4M status=progress conv=fsync
+
+# Time: 15-20 minutes
+# Shows progress in real-time
+}}}
+
+**Option B: Restore from compressed image (.img.gz):**
+{{{code: lang="bash" linenumbers="False"
+# REPLACE /dev/sda with YOUR device from step 3
+gunzip -c argos_pi_backup_20260205.img.gz | sudo dd of=/dev/sda bs=4M status=progress conv=fsync
+
+# Time: 15-20 minutes
+# Decompresses and writes simultaneously
+}}}
+
+**6. Verify restoration completed:**
+{{{code: lang="bash" linenumbers="False"
+# Check partitions were created
+lsblk /dev/sda
+
+# Should show:
+# sda           14.6G  disk
+# ├─sda1         512M  part  vfat   bootfs
+# └─sda2        14.1G  part  ext4   rootfs
+
+# Sync to ensure all data written
+sync
+}}}
+
+**7. Safely eject SD card:**
+{{{code: lang="bash" linenumbers="False"
+sudo eject /dev/sda
+}}}
+
+**8. Insert SD card into Pi and power on**
+
+**9. Wait 60-90 seconds for first boot**
+
+**10. Test connection:**
+{{{code: lang="bash" linenumbers="False"
+# Try mDNS hostname
+ping argos.local
+
+# OR try last known IP
+ping 192.168.1.203
+
+# Connect via SSH
+ssh pi@argos.local
+# OR
+ssh pi@192.168.1.203
+
+# Verify system
+hostname  # Should show: argos
+ip addr show  # Should show network configuration
+}}}
+
+---
+
+==== Backup Best Practices ====
+
+**1. When to create new backup:**
+* ✅ After fresh install and initial configuration
+* ✅ After major system updates (OS upgrade, new packages)
+* ✅ Before risky changes (kernel updates, system modifications)
+* ✅ Monthly if actively developing
+* ❌ Don't backup if system is unstable or having issues
+
+**2. Backup naming convention:**
+{{{code: lang="text" linenumbers="False"
+argos_pi_backup_YYYYMMDD.img.gz
+
+Examples:
+argos_pi_backup_20260205.img.gz  - Initial stable version
+argos_pi_backup_20260315.img.gz  - After adding camera support
+argos_pi_backup_20260420.img.gz  - After motor controller update
+}}}
+
+**3. Storage recommendations:**
+* Keep at least 2 backups (current + previous)
+* Store in project directory: `~/Cursor/projeto-argos/ARGOS/argos-car/backups/`
+* Additional copy on external drive or cloud (Dropbox, Google Drive)
+* Total space needed: ~1.5GB per compressed backup
+
+**4. Backup validation:**
+{{{code: lang="bash" linenumbers="False"
+# Test backup integrity after creation
+file argos_pi_backup_20260205.img.gz
+# Should show: gzip compressed data
+
+# Test decompression without writing
+gunzip -t argos_pi_backup_20260205.img.gz
+# No output = success
+# Error message = backup corrupted, create new one
+}}}
+
+---
+
+==== Recovery Time Comparison ====
+
+| Recovery Method | Time Required | Success Rate | When to Use |
+|-----------------|---------------|--------------|-------------|
+| **File-level fixes** | 30-120 min | 70% | First attempt, known issue |
+| **Fresh install + restore code** | 60-90 min | 90% | Deep corruption, learning |
+| **Image restoration** | 15-20 min | 99% | **Fast recovery needed** |
+
+---
+
+==== Emergency Recovery Checklist ====
+
+**When Pi won't connect:**
+
+□ Step 1: Try all methods in **Section 3** (WiFi troubleshooting)  
+□ Step 2: Try **Section 5** (SD card inspection from PC)  
+□ Step 3: Check **Section 6** (Boot file corruption)  
+□ Step 4: If spent > 30 minutes without success → **Restore image**  
+□ Step 5: After restoration, update backup if new configurations made  
+
+**Golden Rule:** If you can't connect after 30 minutes of troubleshooting, restore the image. Your time is valuable.
+
+---
+
+==== Current Backup Information ====
+
+**Backup Created:** February 5, 2026  
+**Backup Location:** `~/Cursor/projeto-argos/ARGOS/argos-car/backups/argos_pi_backup_20260205.img.gz`  
+**Backup Size:** 760MB (compressed from 15GB)  
+**System State:**
+* Hostname: argos
+* Network: Starlink (192.168.1.203)
+* WiFi: method=auto (DHCP)
+* SSH: Enabled
+* mDNS: argos.local working
+* Code: All src/ files included
+
+**Restoration Command:**
+{{{code: lang="bash" linenumbers="False"
+cd ~/Cursor/projeto-argos/ARGOS/argos-car/backups
+gunzip -c argos_pi_backup_20260205.img.gz | sudo dd of=/dev/sda bs=4M status=progress conv=fsync
+}}}
+
+---
+
+==== Important Warnings ====
+
+**⚠️ CRITICAL:**
+* **Always verify device name** before running `dd` command
+* **Wrong device = permanent data loss** (can overwrite your PC's hard drive)
+* **Never interrupt `dd` process** (wait for completion)
+* **Don't mount SD card** before backup/restore (must be unmounted)
+
+**Safe Practice:**
+{{{code: lang="bash" linenumbers="False"
+# Always double-check device before dd
+lsblk
+# Verify size matches SD card (14-16GB)
+# Verify device is NOT your system disk (no / mountpoint on partitions)
+
+# If unsure, DON'T run dd command
+# Ask for help or use GUI tools (Etcher, dd-gui)
+}}}
+
+---
+
+===== FINAL NOTES =====
+
+**This guide now provides THREE recovery layers:**
+
+1. **Quick fixes** (Sections 1-9): File-level troubleshooting - 5-30 minutes
+2. **Deep recovery** (Section 10): Complete reflash - 60 minutes  
+3. **Nuclear option** (Section 13): Image restoration - 15 minutes ✅ **FASTEST**
+
+**Recommendation:** Try quick fixes first, but don't spend hours debugging. If stuck after 30 minutes, restore the image and move on with your project.
+
+---
+
+**Last Updated:** February 5, 2026  
+**Project:** ARGOS-Car Development  
+**Author:** Compiled from project documentation
+
+---
+

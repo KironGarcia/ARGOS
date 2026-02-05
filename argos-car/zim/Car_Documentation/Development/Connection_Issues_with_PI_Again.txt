@@ -1,0 +1,314 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-05T00:00:00+00:00
+
+====== Connection Issues with PI Again ======
+Created Wednesday 05 February 2026
+
+===== 🎉 CONGRATULATIONS! SUCCESSFUL CONNECTION! =====
+
+---
+
+==== ABOUT STARLINK IP: ====
+
+**YES, you can be calm.** Starlink routers (and home routers in general) maintain **much more stable** IPs than cell phone hotspots because:
+
+✅ **DHCP with reservations:** The router "remembers" which IP it gave to each device by its MAC address  
+✅ **Long lease time:** IPs are automatically renewed for days/weeks  
+✅ **Fixed network:** The `192.168.1.x` range doesn't change like in mobile hotspots
+
+**Probability of change:** Very low (only if you reset the router or the Raspberry is off for a long time).
+
+---
+
+===== 📋 COMPARATIVE DIAGNOSTIC SUMMARY =====
+
+==== INITIAL PROBLEM (First Time - January 20) ====
+
+=== Symptoms: ===
+* Raspberry Pi did not allow SSH access
+* Appeared connected by MAC but no access
+* Static IP in incorrect range
+
+=== Problems Found: ===
+1. ❌ **SSH disabled** - `/boot/firmware/ssh` did not exist
+2. ❌ **Network configured as hidden** - `hidden=true` in NetworkManager
+3. ❌ **Password in encrypted hash** - Instead of plain text
+4. ❌ **Static IP in incorrect range** - `10.154.149.x` when hotspot used another range
+
+=== Solutions Applied (First Time): ===
+{{{code: lang="bash" linenumbers="False"
+# Enable SSH
+sudo touch /media/kiron/rootfs/boot/firmware/ssh
+
+# Edit WiFi configuration
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+# - Remove hidden=true
+# - Change psk to plain text
+# - Update IP to correct range
+}}}
+
+=== Result: === 
+✅ Successful WiFi connection
+
+---
+
+==== RECURRING PROBLEM (Today - February 5) ====
+
+=== Symptoms: ===
+* Raspberry Pi was NOT appearing connected on the network (neither on Starlink nor on hotspot)
+* Did not respond to SSH from any IP
+* Network change (hotspot → Starlink)
+
+=== Problems Found (NEW): ===
+1. ❌ **NetworkManager with `managed=false`** - NetworkManager was not managing interfaces
+2. ❌ **CORRUPTED config.txt** - File full of null bytes (`^@`)
+3. ❌ **Malformed cmdline.txt** - Missing space between `rootwait` and `modules-load`
+4. ❌ **Outdated IP range** - Configured for `172.25.54.x` (hotspot) when `192.168.1.x` (Starlink) was needed
+
+=== Solutions Applied (Today): ===
+
+**1. Change NetworkManager to managed:**
+{{{code: lang="bash" linenumbers="False"
+sudo nano /media/kiron/rootfs/etc/NetworkManager/NetworkManager.conf
+# Change: managed=false → managed=true
+}}}
+
+**2. Rebuild corrupted config.txt:**
+{{{code: lang="bash" linenumbers="False"
+sudo nano /media/kiron/bootfs/config.txt
+# Recreate complete standard Raspberry Pi configuration
+}}}
+
+**3. Fix cmdline.txt:**
+{{{code: lang="bash" linenumbers="False"
+sudo nano /media/kiron/bootfs/cmdline.txt
+# Add space: rootwait modules-load=dwc2,g_ether
+}}}
+
+**4. Change to automatic DHCP:**
+{{{code: lang="bash" linenumbers="False"
+sudo nano /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+# [ipv4]
+# method=auto  # Instead of static IP
+}}}
+
+**5. Update WiFi credentials to Starlink:**
+{{{code: lang="ini" linenumbers="False"
+ssid=KironStarlink
+psk=124875369.lapergunta200
+}}}
+
+=== Result: === 
+✅ Successful WiFi connection with DHCP
+
+---
+
+===== 🔧 EFFECTIVE COMMANDS FOR DIAGNOSIS =====
+
+==== COMPLETE DIAGNOSTIC CHECKLIST: ====
+
+=== 1. Verify Current Network Range: ===
+{{{code: lang="bash" linenumbers="False"
+ip route show default
+}}}
+**Expected output:** `default via X.X.X.X dev wlan0` → Gives you gateway and range
+
+---
+
+=== 2. Mount SD Partitions: ===
+{{{code: lang="bash" linenumbers="False"
+# Verify device
+lsblk
+
+# Mount root (file system)
+sudo mount /dev/sda2 /media/kiron/rootfs
+
+# Mount boot (boot configuration)
+sudo mount /dev/sda1 /media/kiron/bootfs
+}}}
+
+---
+
+=== 3. Verify WiFi Configuration: ===
+{{{code: lang="bash" linenumbers="False"
+# List connection profiles
+ls -la /media/kiron/rootfs/etc/NetworkManager/system-connections/
+
+# View complete configuration
+sudo cat /media/kiron/rootfs/etc/NetworkManager/system-connections/preconfigured.nmconnection
+
+# Verify permissions (should be 600)
+ls -l /media/kiron/rootfs/etc/NetworkManager/system-connections/*.nmconnection
+}}}
+
+**Verify:**
+* ✅ `ssid=` correct name
+* ✅ `psk=` correct password (plain text)
+* ✅ Should NOT have `hidden=true` (unless network is hidden)
+* ✅ `method=auto` for DHCP OR `address1=` in correct range for static
+
+---
+
+=== 4. Verify NetworkManager: ===
+{{{code: lang="bash" linenumbers="False"
+sudo cat /media/kiron/rootfs/etc/NetworkManager/NetworkManager.conf
+}}}
+
+**Should have:**
+{{{code: lang="ini" linenumbers="False"
+[ifupdown]
+managed=true  # ← CRITICAL
+}}}
+
+---
+
+=== 5. Verify SSH Enabled: ===
+{{{code: lang="bash" linenumbers="False"
+# Verify systemd service
+ls -l /media/kiron/rootfs/etc/systemd/system/multi-user.target.wants/ | grep ssh
+
+# Verify boot enable file
+ls -l /media/kiron/rootfs/boot/firmware/ssh
+}}}
+
+**If it doesn't exist:**
+{{{code: lang="bash" linenumbers="False"
+sudo touch /media/kiron/rootfs/boot/firmware/ssh
+}}}
+
+---
+
+=== 6. Verify Boot Files: ===
+{{{code: lang="bash" linenumbers="False"
+# View config.txt
+sudo cat /media/kiron/bootfs/config.txt
+
+# View cmdline.txt (MUST BE A SINGLE LINE)
+sudo cat /media/kiron/bootfs/cmdline.txt
+}}}
+
+**cmdline.txt must have correct spaces:**
+{{{
+...rootwait modules-load=dwc2,g_ether...
+         ^
+         critical space
+}}}
+
+---
+
+=== 7. Verify Configuration Conflicts: ===
+{{{code: lang="bash" linenumbers="False"
+# Search for old wpa_supplicant configurations
+sudo cat /media/kiron/rootfs/etc/wpa_supplicant/wpa_supplicant.conf 2>/dev/null
+
+# View other connections that may interfere
+ls -la /media/kiron/rootfs/etc/NetworkManager/system-connections/
+}}}
+
+---
+
+=== 8. Unmount Correctly: ===
+{{{code: lang="bash" linenumbers="False"
+cd ~
+sync
+sudo umount /media/kiron/rootfs
+sudo umount /media/kiron/bootfs
+sudo eject /dev/sda
+}}}
+
+---
+
+=== 9. Find the Raspberry on the Network: ===
+{{{code: lang="bash" linenumbers="False"
+# Complete network scan
+sudo nmap -sn 192.168.1.0/24 | grep -B 2 "Raspberry"
+
+# Try mDNS
+ssh pi@raspberrypi.local
+
+# If you know the IP
+ssh pi@192.168.1.203
+}}}
+
+---
+
+==== DIAGNOSIS OF CRITICAL FILES: ====
+
+{{{code: lang="bash" linenumbers="False"
+# Verify integrity of essential files
+sudo cat /media/kiron/rootfs/etc/hostname  # Should be "raspberrypi"
+sudo cat /media/kiron/rootfs/etc/hosts     # Should have basic entries
+
+# Verify that config.txt is not corrupted (should not have ^@)
+sudo cat /media/kiron/bootfs/config.txt | head -5
+}}}
+
+---
+
+===== 📊 PROBLEM COMPARISON =====
+
+|| Aspect | First Time (January) | Second Time (February) |
+||---------|---------------------|------------------------|
+|| **SSH** | ❌ Disabled | ✅ Enabled |
+|| **WiFi Config** | ❌ Hidden=true, encrypted hash | ✅ Correct |
+|| **NetworkManager** | ✅ Working | ❌ `managed=false` |
+|| **config.txt** | ✅ Intact | ❌ **CORRUPTED** |
+|| **cmdline.txt** | ❌ No space | ❌ **No space** |
+|| **IP Config** | ❌ Incorrect static | ✅ Auto DHCP |
+|| **Network used** | Cell hotspot (changing IP) | Starlink (stable IP) |
+
+---
+
+===== 🎯 LESSONS LEARNED =====
+
+==== Recurring Problems: ====
+1. **cmdline.txt** always has the space error between `rootwait` and `modules-load`
+2. **Static IPs** cause problems when the network changes
+3. **Files can get corrupted** (config.txt was corrupted this time)
+
+==== Best Practices: ====
+✅ **Use automatic DHCP** instead of static IP (more flexible)  
+✅ **Verify `managed=true`** in NetworkManager.conf  
+✅ **Always verify config.txt and cmdline.txt** after problems  
+✅ **Use Starlink/fixed router** instead of mobile hotspot (more stable)  
+✅ **Keep backup of working configurations**  
+
+---
+
+===== 💾 BACKUP OF CURRENT WORKING CONFIGURATION =====
+
+{{{code: lang="ini" linenumbers="False"
+# /etc/NetworkManager/system-connections/preconfigured.nmconnection
+[connection]
+id=preconfigured
+type=wifi
+autoconnect-priority=100
+
+[wifi]
+mode=infrastructure
+ssid=KironStarlink
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=124875369.lapergunta200
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+}}}
+
+{{{code: lang="ini" linenumbers="False"
+# /etc/NetworkManager/NetworkManager.conf
+[ifupdown]
+managed=true
+}}}
+
+**Current IP:** `192.168.1.203`  
+**Connection:** ✅ SSH functional  
+**Network:** Starlink (stable)
+
+---
+
