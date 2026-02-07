@@ -1,0 +1,879 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-07T00:00:00+00:00
+
+====== Stage 2 Component Integration ======
+Created Friday 07 February 2026
+
+===== Overview =====
+
+This document consolidates all technical decisions, component distribution strategy, and integration plan for ARGOS Stage 2: Dual-Brain Architecture implementation.
+
+**Purpose:** Transform ARGOS from single-controller (Raspberry Pi only) to dual-controller system (Raspberry Pi + ESP32) for improved performance, distributed processing, and scalability.
+
+---
+
+===== Architecture Philosophy =====
+
+==== Symbiotic Dual-Brain System ====
+
+**Raspberry Pi Zero W** = Central Nervous System
+* High-level decision making and AI processing
+* Computer vision and voice recognition
+* Complex navigation logic
+* Motor control (time-critical operations)
+
+**ESP32** = Peripheral Nervous System  
+* Real-time sensor processing (non-critical)
+* User interface management (LCD display)
+* Orientation tracking (IMU sensor)
+* Offload tasks from Raspberry Pi to free CPU resources
+
+**Design Goal:** Each controller handles tasks it does best, creating efficient symbiotic relationship.
+
+---
+
+===== Component Distribution Strategy =====
+
+==== Raspberry Pi Zero W Responsibilities ====
+
+**AI & Computer Vision (High CPU Load):**
+* 📷 **Camera OV7670** - Object detection using MobileNet Lite
+* 🎤 **Voice Recognition** - Vosk lightweight model via Bluetooth headset
+* 🧠 **Navigation Logic** - Path planning, decision trees
+* 🤖 **System Coordination** - Send high-level commands to ESP32
+
+**Time-Critical Control (Low Latency Required):**
+* 🚗 **Motor Control** - L298N controller (IN1-4, ENA, ENB)
+* 📡 **Ultrasonic Sensor HC-SR04** - Obstacle detection and emergency brake
+* ⚡ **Differential Drive Logic** - Turning maneuvers
+
+**Communication:**
+* 🔗 **UART to ESP32** - Send display messages and receive sensor data
+* 📱 **Bluetooth A2DP** - Audio headset for voice commands and responses
+
+**Power Source:**
+* 🔋 Powerbank 5V 10,000mAh
+* Estimated consumption: 300-400 mA
+* Runtime: 10-15 hours
+
+---
+
+==== ESP32 Responsibilities ====
+
+**User Interface (Medium CPU Load):**
+* 🖥️ **LCD 1602 Display** - System status messages, emotional states
+* 📨 **Receive commands from Pi** - Display text, update status
+
+**Orientation & Navigation Support:**
+* 🧭 **IMU Sensor (MPU6050)** - Maintain straight line direction
+* 📊 **Tilt detection** - Terrain awareness
+* 🔄 **Heading correction** - Auto-adjust steering drift
+
+**Communication:**
+* 🔗 **UART to Raspberry Pi** - Receive commands, send IMU data
+
+**Power Source:**
+* 🔋 4x AA Rechargeable Batteries (1.2V each = 4.8V total)
+* Estimated consumption: 100-150 mA
+* Runtime: 6-8 hours (2500mAh batteries)
+
+---
+
+===== Power System Architecture =====
+
+==== Independent Power Sources ====
+
+**Source 1: Raspberry Pi + Ultrasonic Sensor**
+```
+Powerbank 5V 10,000mAh
+├── Raspberry Pi Zero W (via micro-USB)
+└── HC-SR04 Sensor (via USB cable cut + jumpers)
+```
+
+**Source 2: ESP32 + Display + IMU**
+```
+4x AA Batteries (4.8V) via USB cable cut
+├── ESP32 (via VIN pin + jumpers or soldered USB Type-C connector)
+├── LCD 1602 (powered by ESP32 5V out)
+└── IMU MPU6050 (powered by ESP32 3.3V out)
+```
+
+**Source 3: Motors**
+```
+12V Battery 10,900mAh
+├── L298N Controller (+12V input)
+└── 2x JGA25 12V DC Gearmotors
+```
+
+**Common Ground:**
+* All three power systems share GND reference
+* GND connected via Raspberry Pi pins 6, 9, 14
+
+**Advantages:**
+* ✅ Electrical isolation prevents cross-contamination
+* ✅ Motor power spikes don't affect logic circuits
+* ✅ Each system operates at optimal voltage
+* ✅ Easy to troubleshoot individual power issues
+
+---
+
+===== Communication Protocol =====
+
+==== UART Serial Communication ====
+
+**Physical Connection:**
+```
+Raspberry Pi GPIO 14 (Pin 8)  TX → ESP32 GPIO 16 (RX2)
+Raspberry Pi GPIO 15 (Pin 10) RX ← ESP32 GPIO 17 (TX2)
+Common GND between both controllers
+```
+
+**Note:** GPIO 15 (Pin 10) currently occupied by ENA. Solution: Move ENA to GPIO 12 (Pin 32) which also supports PWM.
+
+**Protocol Specifications:**
+* Baud Rate: 115200 bps
+* Data Format: 8N1 (8 data bits, no parity, 1 stop bit)
+* Latency: <1 ms (critical for real-time response)
+
+**Message Format (JSON):**
+```json
+// Pi → ESP32 (Commands)
+{
+  "action": "display",
+  "text": "MOVING FORWARD",
+  "type": "status"
+}
+
+{
+  "action": "query",
+  "sensor": "imu",
+  "data": "heading"
+}
+
+// ESP32 → Pi (Responses)
+{
+  "sensor": "imu",
+  "heading": 178.5,
+  "tilt": 2.3,
+  "timestamp": 1234567890
+}
+```
+
+**Why UART over Bluetooth/WiFi:**
+* ✅ Minimal latency (<1 ms vs 50-100 ms for Bluetooth)
+* ✅ Extremely reliable (wired connection)
+* ✅ Simple implementation (only 2 wires + GND)
+* ✅ Doesn't consume wireless resources
+* ✅ Perfect for real-time coordination
+
+---
+
+===== Pin Mapping - Final Configuration =====
+
+==== Raspberry Pi Zero W GPIO Usage ====
+
+|| Component | Physical Pin | GPIO | Function | Notes |
+||-----------|--------------|------|----------|-------|
+|| **Motor Controller L298N** ||||||
+|| GND | Pin 6 | GND | Ground reference | Shared with 12V battery |
+|| GND | Pin 14 | GND | Ground reference | Shared with 12V battery |
+|| ENA | Pin 32 | GPIO 12 | Motor A PWM | **MOVED from Pin 10** |
+|| ENB | Pin 12 | GPIO 18 | Motor B PWM | |
+|| IN1 | Pin 11 | GPIO 17 | Motor A Dir 1 | |
+|| IN2 | Pin 13 | GPIO 27 | Motor A Dir 2 | |
+|| IN3 | Pin 15 | GPIO 22 | Motor B Dir 1 | |
+|| IN4 | Pin 16 | GPIO 23 | Motor B Dir 2 | |
+|| **HC-SR04 Ultrasonic Sensor** ||||||
+|| GND | Pin 9 | GND | Ground reference | Shared with powerbank |
+|| TRIG | Pin 18 | GPIO 24 | Sensor trigger | |
+|| ECHO | Pin 19 | GPIO 10 | Sensor echo | Via voltage divider |
+|| **UART to ESP32** ||||||
+|| TX | Pin 8 | GPIO 14 | Transmit to ESP32 | |
+|| RX | Pin 10 | GPIO 15 | Receive from ESP32 | **Now available** |
+|| **Camera** ||||||
+|| Camera | CSI Port | N/A | OV7670 or compatible | Dedicated ribbon cable |
+
+**Total GPIO Used:** 13 of 40 pins  
+**Available for expansion:** 27 pins
+
+---
+
+==== ESP32 GPIO Usage ====
+
+|| Component | ESP32 GPIO | Function | Notes |
+||-----------|------------|----------|-------|
+|| **UART to Raspberry Pi** ||||
+|| RX | GPIO 16 | Receive from Pi | UART2 RX |
+|| TX | GPIO 17 | Transmit to Pi | UART2 TX |
+|| **I2C Bus (Shared)** ||||
+|| SDA | GPIO 21 | I2C Data | Shared: LCD + IMU |
+|| SCL | GPIO 22 | I2C Clock | Shared: LCD + IMU |
+|| **Power** ||||
+|| VIN | VIN pin | 4.8V input | From AA batteries |
+|| GND | GND pin | Ground | Common with Pi |
+
+**Total GPIO Used:** 6 of 34 pins  
+**Available for expansion:** 28 pins
+
+**Note on I2C Sharing:**
+* LCD 1602 (I2C address: 0x27 or 0x3F typical)
+* IMU MPU6050 (I2C address: 0x68 or 0x69)
+* Different addresses allow both devices on same bus
+* Significant pin savings (2 pins control 2 devices)
+
+---
+
+===== Power Connection Details =====
+
+==== ESP32 Power Solution ====
+
+**Option A: Jumper Cables (RECOMMENDED)**
+```
+USB cable cut (from AA batteries)
+├── Red wire (+4.8V) → Jumper male → ESP32 VIN pin
+└── Black wire (GND)  → Jumper male → ESP32 GND pin
+```
+
+**Advantages:**
+* ✅ Simple and reliable
+* ✅ Standard jumper wires support 2-3A (ESP32 needs max 0.5A)
+* ✅ 4-6x safety margin
+* ✅ No complex soldering required
+
+**Option B: USB Type-C Connector**
+```
+USB cable cut → Solder to Type-C connector → Plug into ESP32
+```
+
+**Implementation:**
+* Cut Type-C cable
+* Identify only 2 wires needed: VCC (red/orange) and GND (black)
+* Ignore data wires (green/white)
+* Solder to battery cable
+
+**Advantages:**
+* ✅ Clean, professional look
+* ✅ Easy to disconnect ESP32
+* ❌ More work for same result
+
+**Power Requirements:**
+* ESP32 typical consumption: 100-150 mA
+* ESP32 peak consumption: ~500 mA
+* AA batteries capacity: 2000-2500 mAh
+* Expected runtime: 6-8 hours continuous operation
+
+---
+
+===== Component Details & Open Questions =====
+
+==== Camera Module - Pending Clarification ====
+
+**Current Component:** OV7670 Camera Module
+
+**Critical Questions to Answer:**
+
+1. **Interface Type:**
+   * Does camera have CSI ribbon cable connector? (15-pin flat cable)
+   * OR does it have 18 individual GPIO pins? (parallel interface)
+
+2. **Connection Options:**
+
+**Option A: CSI Interface (PREFERRED)**
+```
+Advantages:
+✅ Uses dedicated CSI port on Raspberry Pi
+✅ Zero GPIO pins consumed
+✅ Plug-and-play connection
+✅ Better performance with GPU acceleration
+
+Requirements:
+- Camera module must have CSI interface
+- Compatible with Raspberry Pi Camera protocol
+```
+
+**Option B: GPIO Parallel Interface**
+```
+Advantages:
+✅ Can use existing OV7670 if it only has GPIO pins
+
+Disadvantages:
+❌ Consumes 10-13 GPIO pins
+❌ More complex software configuration
+❌ Slower capture rate
+❌ No GPU acceleration
+
+Pin Requirements:
+- 8 data pins (D0-D7)
+- 3 sync pins (VSYNC, HREF, PCLK)
+- 2 I2C pins for configuration (SDA, SCL)
+- VCC, GND, RESET, PWDN
+```
+
+3. **Alternative Camera Modules (CSI Compatible):**
+   * Raspberry Pi Camera Module v1 (OV5647) - $5-10
+   * Raspberry Pi Camera Module v2 (IMX219) - $10-15
+   * Arducam OV5647 compatible - $8-12
+
+**Recommendation Pending:**
+* Identify exact camera model and interface type
+* If OV7670 lacks CSI, evaluate cost vs complexity of GPIO connection
+* Consider purchasing CSI-compatible module if budget allows
+
+---
+
+==== LCD 1602 Display - Pending Clarification ====
+
+**Current Component:** LCD 1602 Character Display
+
+**Critical Questions to Answer:**
+
+1. **I2C Module Present?**
+   * Check back of LCD for black rectangular chip (PCF8574 or similar)
+   * If present: I2C interface available ✅
+   * If absent: Direct parallel interface only ❌
+
+2. **Connection Options:**
+
+**Option A: LCD with I2C Module (HIGHLY PREFERRED)**
+```
+Pin Requirements:
+- VCC (5V)
+- GND
+- SDA (I2C Data)
+- SCL (I2C Clock)
+
+Total: 4 wires, only 2 GPIO used
+
+Advantages:
+✅ Minimal pin usage
+✅ Can share I2C bus with IMU sensor
+✅ Simple wiring
+✅ Standard library support (LiquidCrystal_I2C)
+
+I2C Address: Usually 0x27 or 0x3F (configurable)
+```
+
+**Option B: LCD without I2C (NOT RECOMMENDED)**
+```
+Pin Requirements:
+- 8 data pins (D0-D7) OR 4 pins in 4-bit mode (D4-D7)
+- RS (Register Select)
+- E (Enable)
+- RW (Read/Write) - can tie to GND
+- VCC, GND
+- Contrast potentiometer
+- Backlight (A, K)
+
+Total: 10-16 wires, 6-10 GPIO used
+
+Disadvantages:
+❌ Consumes many GPIO pins
+❌ Complex wiring
+❌ Cannot share bus with other devices
+```
+
+3. **Solution if No I2C Module:**
+   * Purchase I2C adapter module separately (~$1-2)
+   * Solder 16-pin adapter to LCD back
+   * Instant conversion to 4-pin I2C interface
+
+**Recommendation Pending:**
+* Physically inspect LCD for I2C module
+* If absent, strongly recommend purchasing I2C adapter
+* Cost vs complexity: $2 adapter saves 8-12 GPIO pins
+
+---
+
+===== IMU Sensor Integration =====
+
+==== Component: MPU6050 (6-axis IMU) ====
+
+**Specifications:**
+* 3-axis accelerometer + 3-axis gyroscope
+* I2C interface (2 wires: SDA, SCL)
+* I2C address: 0x68 (default) or 0x69 (alternative)
+* Operating voltage: 3.3V or 5V (both supported)
+
+**Primary Functions:**
+
+1. **Heading Maintenance (Direction Correction)**
+```python
+# Auto-correct to maintain straight line
+target_heading = 0  # North reference
+current_heading = imu.get_heading()
+
+if current_heading > target_heading + 5:
+    # Drifting right, adjust left
+    adjust_motors(left=100%, right=85%)
+elif current_heading < target_heading - 5:
+    # Drifting left, adjust right
+    adjust_motors(left=85%, right=100%)
+```
+
+2. **Tilt Detection (Terrain Awareness)**
+```python
+tilt_angle = imu.get_tilt()
+if tilt_angle > 15:
+    print("WARNING: Steep incline detected")
+    reduce_speed(50%)  # Prevent tipping
+```
+
+3. **Position Estimation (Dead Reckoning)**
+```python
+# Estimate distance traveled without GPS
+distance = integrate(acceleration, time)
+position = integrate(velocity, time)
+```
+
+**Integration Priority:**
+* ⏳ **Stage 2, Phase C** (not critical for basic functionality)
+* ✅ Add after motor control and display are validated
+* 🎯 Enhances navigation quality significantly
+
+**Why Include IMU:**
+* ✅ Dramatically improves straight-line movement
+* ✅ Enables predictable turning angles
+* ✅ Critical for hackeo demonstration (sensor disable shows drift)
+* ✅ Low cost (~$3-5) and easy integration (I2C shared with LCD)
+* ✅ Makes project more impressive in presentation
+
+---
+
+===== Hackeo Demonstration Strategy =====
+
+==== Vulnerabilities to Exploit (Without CAN Bus) ====
+
+**Original Plan:** CAN Bus injection attack (Jeep Cherokee style)  
+**Status:** ❌ Removed due to complexity, cost, and time constraints
+
+**New Attack Vectors:**
+
+===== Attack Vector 1: GPIO Command Injection =====
+```
+Exploit: Direct manipulation of motor control signals
+Method: Inject malicious commands through software vulnerability
+
+Normal Operation:
+User voice command → Pi processes → Motors respond safely
+
+Hacked Operation:
+Attacker bypasses authentication → Sends direct GPIO commands
+→ Motors ignore safety checks → Full speed ahead
+```
+
+===== Attack Vector 2: Sensor Data Poisoning =====
+```
+Exploit: Feed false data to navigation system
+Method: Man-in-the-middle attack on sensor readings
+
+Normal Operation:
+HC-SR04: "Obstacle at 20cm" → Pi: "STOP MOTORS"
+IMU: "Drifting right 8°" → Pi: "Correct left"
+
+Hacked Operation:
+Attacker intercepts sensor data → Replaces with fake data
+HC-SR04: "No obstacle" (false) → Pi: "Continue" → CRASH
+IMU: "Heading 0°" (false) → Pi: "No correction" → DRIFT
+```
+
+===== Attack Vector 3: Privilege Escalation =====
+```
+Exploit: Gain root access to Raspberry Pi
+Method: SSH brute force or software vulnerability
+
+Attack Chain:
+1. Scan network for Raspberry Pi (port 22)
+2. Attempt SSH connection with common passwords
+3. Gain shell access
+4. Escalate to root privileges
+5. Disable safety systems
+6. Control motors directly
+```
+
+===== Attack Vector 4: Bluetooth Hijacking =====
+```
+Exploit: Take over voice command channel
+Method: Bluetooth pairing vulnerability
+
+Normal Operation:
+Authorized headset → Voice commands → Pi executes safely
+
+Hacked Operation:
+Attacker pairs malicious Bluetooth device
+→ Sends fake voice commands
+→ "ARGOS, full speed ahead"
+→ "ARGOS, disable obstacle detection"
+```
+
+**Demonstration Flow:**
+
+**Phase 1: Normal Operation**
+* Car navigates autonomously
+* IMU maintains straight line
+* HC-SR04 detects obstacles and stops
+* Voice commands work correctly
+* Display shows "SYSTEM NORMAL"
+
+**Phase 2: Attack Initiated**
+* Display shows "⚠️ INTRUSION DETECTED"
+* Attacker exploits chosen vulnerability
+* Sensors disabled (IMU + HC-SR04 stop responding)
+* Car drifts off course
+* No obstacle avoidance
+* Display shows "🚨 SYSTEM COMPROMISED"
+
+**Phase 3: ARGOS Protection Activates**
+* Anomaly detection algorithm triggers
+* Emergency mode activated
+* Direct GPIO control bypasses compromised layer
+* Motors stop immediately
+* Display shows "✅ THREAT BLOCKED - SAFE MODE"
+
+**Technical Implementation:**
+```python
+# Simplified demonstration code
+def demo_attack():
+    # Phase 1: Normal
+    display.show("SYSTEM NORMAL")
+    run_autonomous_mode()
+    
+    # Phase 2: Attack (simulated)
+    time.sleep(10)
+    display.show("INTRUSION DETECTED")
+    disable_sensors()  # Simulated attack
+    car_drifts()       # No IMU correction
+    no_obstacle_stop() # HC-SR04 disabled
+    
+    # Phase 3: Protection
+    time.sleep(5)
+    if detect_anomaly():  # ARGOS detection
+        emergency_stop()
+        display.show("THREAT BLOCKED")
+        activate_safe_mode()
+```
+
+---
+
+===== Stage 2 Implementation Phases =====
+
+==== Phase A: ESP32 Basic Integration ====
+
+**Objective:** Establish communication between Raspberry Pi and ESP32
+
+**Tasks:**
+1. ✅ Move ENA from Pin 10 (GPIO 8) to Pin 32 (GPIO 12)
+2. ✅ Connect UART wires (Pi GPIO 14/15 ↔ ESP32 GPIO 16/17)
+3. ✅ Connect ESP32 power (VIN + GND from AA battery cable)
+4. ✅ Write basic UART test code (Pi sends "Hello" → ESP32 receives)
+5. ✅ Validate bidirectional communication (ESP32 responds "ACK")
+
+**Success Criteria:**
+* UART communication stable at 115200 baud
+* Messages transmitted reliably in both directions
+* Latency < 2 ms measured
+
+**Estimated Time:** 2-3 days
+
+---
+
+==== Phase B: LCD Display Integration ====
+
+**Objective:** ESP32 controls LCD to display system status messages
+
+**Prerequisites:**
+* Verify LCD has I2C module (check for chip on back)
+* If no I2C: Purchase and install I2C adapter module
+
+**Tasks:**
+1. ✅ Connect LCD to ESP32 I2C (GPIO 21 SDA, GPIO 22 SCL)
+2. ✅ Test LCD with simple "Hello World" message
+3. ✅ Implement message protocol (Pi sends JSON → ESP32 displays)
+4. ✅ Create message types:
+   * Status messages ("MOVING FORWARD", "OBSTACLE DETECTED")
+   * Emotional states ("HAPPY", "ALERT", "THINKING")
+   * Error messages ("SENSOR FAILURE")
+5. ✅ Test full communication: Pi → ESP32 → LCD
+
+**Success Criteria:**
+* LCD displays text within 10 ms of Pi command
+* Messages update smoothly without flicker
+* I2C communication stable
+
+**Estimated Time:** 2-3 days
+
+---
+
+==== Phase C: IMU Sensor Integration ====
+
+**Objective:** Add orientation tracking and heading correction
+
+**Tasks:**
+1. ✅ Connect MPU6050 to ESP32 I2C (shared with LCD)
+2. ✅ Verify I2C addresses don't conflict (LCD: 0x27, IMU: 0x68)
+3. ✅ Calibrate IMU sensor (find zero points)
+4. ✅ Implement heading read function on ESP32
+5. ✅ Send IMU data to Pi via UART (JSON format)
+6. ✅ Implement heading correction logic on Pi:
+   * Read target heading
+   * Compare with current heading from IMU
+   * Adjust motor speeds to correct drift
+7. ✅ Test straight-line maintenance (car should self-correct)
+
+**Success Criteria:**
+* IMU provides accurate heading (±2° precision)
+* Car maintains straight line within ±5° deviation
+* Correction response time < 100 ms
+
+**Estimated Time:** 3-4 days
+
+---
+
+==== Phase D: Camera Integration ====
+
+**Objective:** Add computer vision for object detection
+
+**Prerequisites:**
+* Identify camera interface type (CSI or GPIO)
+* If GPIO: Plan pin allocation (needs 10+ pins)
+* If CSI incompatible: Consider purchasing compatible module
+
+**Tasks:**
+1. ✅ Connect camera (method depends on interface type)
+2. ✅ Test basic image capture (save to file)
+3. ✅ Implement MobileNet Lite object detection
+4. ✅ Optimize for Pi Zero W (reduce resolution/framerate)
+5. ✅ Integrate with navigation logic:
+   * Detect obstacles visually
+   * Identify objects (person, car, animal)
+   * Make decisions based on visual input
+6. ✅ Test computer vision with real objects
+
+**Success Criteria:**
+* Camera captures frames at 5-10 FPS minimum
+* Object detection works with >70% accuracy
+* No system crashes or memory issues
+* Navigation responds to visual input
+
+**Estimated Time:** 5-7 days (complexity depends on interface)
+
+---
+
+==== Phase E: System Integration & Testing ====
+
+**Objective:** Validate complete dual-brain system working together
+
+**Tasks:**
+1. ✅ Integration testing: All components working simultaneously
+2. ✅ Performance optimization: Reduce CPU load on Pi
+3. ✅ Stress testing: Run system continuously for 30+ minutes
+4. ✅ Battery runtime testing: Measure actual consumption
+5. ✅ Prepare hackeo demonstration:
+   * Program attack simulation
+   * Test sensor disable sequence
+   * Validate ARGOS protection response
+6. ✅ Final validation: Complete autonomous navigation scenario
+
+**Success Criteria:**
+* All sensors and actuators respond correctly
+* No crashes or freezes during 30-minute test
+* Battery lasts minimum 2 hours of active use
+* Hackeo demonstration executes smoothly
+* System performs noticeably better than Stage 1
+
+**Estimated Time:** 3-5 days
+
+---
+
+===== Critical Decisions Summary =====
+
+==== Architecture Decisions ====
+* ✅ **Dual-controller system adopted** (Raspberry Pi + ESP32)
+* ✅ **UART communication chosen** over Bluetooth/WiFi (latency priority)
+* ✅ **Three independent power sources** (motors, Pi, ESP32)
+* ❌ **CAN Bus removed** (complexity, cost, time constraints)
+
+==== Component Placement Decisions ====
+* ✅ **Motors on Pi** (time-critical, emergency brake priority)
+* ✅ **HC-SR04 on Pi** (for now, may migrate to ESP32 later)
+* ✅ **LCD on ESP32** (frees Pi CPU for AI processing)
+* ✅ **IMU on ESP32** (real-time orientation, non-critical latency)
+* ✅ **Camera on Pi** (GPU acceleration, CSI port advantage)
+* ✅ **Voice via Bluetooth headset** (eliminates mic+speaker complexity)
+
+==== Technical Decisions ====
+* ✅ **I2C bus sharing** (LCD + IMU on same bus, different addresses)
+* ✅ **Move ENA to GPIO 12** (frees GPIO 15 for UART RX)
+* ✅ **Jumper wires for ESP32 power** (simpler than Type-C connector)
+* ✅ **TensorFlow Lite models** (optimize for Pi Zero W limited resources)
+* ✅ **Stage-based integration** (validate each component before adding next)
+
+==== Deferred Decisions (Pending Clarification) ====
+* ⏳ **Camera interface method** (CSI vs GPIO - depends on hardware)
+* ⏳ **LCD I2C availability** (need to verify module present)
+* ⏳ **Attack vector choice** (choose 1-2 vulnerabilities for demonstration)
+
+---
+
+===== Risk Mitigation =====
+
+==== Identified Risks & Solutions ====
+
+**Risk 1: UART Communication Failure**
+* Symptom: ESP32 and Pi cannot communicate
+* Mitigation: Test with simple echo program first, verify common GND
+* Backup: Use I2C communication as alternative (slower but works)
+
+**Risk 2: Power Insufficiency**
+* Symptom: ESP32 brownouts, random resets
+* Mitigation: Measure actual current draw, upgrade batteries if needed
+* Backup: Power ESP32 from powerbank temporarily
+
+**Risk 3: GPIO Pin Shortage**
+* Symptom: Not enough pins for all components
+* Mitigation: Prioritize I2C components (shared bus), use multiplexers if needed
+* Backup: Remove non-critical components (antenna servo already removed)
+
+**Risk 4: Pi Zero W Performance**
+* Symptom: System lags, frame drops, slow response
+* Mitigation: Use TensorFlow Lite, reduce camera resolution, optimize code
+* Backup: Offload more processing to ESP32
+
+**Risk 5: Integration Complexity**
+* Symptom: Too many components break existing functionality
+* Mitigation: Stage-based approach, test after each addition
+* Backup: Roll back to previous working state (Git version control)
+
+---
+
+===== Success Metrics =====
+
+==== Stage 2 Completion Criteria ====
+
+**Technical Metrics:**
+* ✅ ESP32 communicates with Pi reliably (<1% packet loss)
+* ✅ LCD updates within 10 ms of command
+* ✅ IMU provides accurate heading (±2° precision)
+* ✅ Camera captures at minimum 5 FPS
+* ✅ Object detection accuracy >70%
+* ✅ System runs continuously for 30+ minutes without crashes
+* ✅ Battery runtime >2 hours active use
+
+**Functional Metrics:**
+* ✅ Car navigates autonomously avoiding obstacles
+* ✅ Car maintains straight line (IMU correction working)
+* ✅ Voice commands recognized and executed
+* ✅ Display shows relevant status messages
+* ✅ Hackeo demonstration executes smoothly
+* ✅ ARGOS protection blocks simulated attack
+
+**Presentation Metrics:**
+* ✅ System impresses audience with capabilities
+* ✅ Dual-brain architecture clearly visible
+* ✅ Hackeo scenario demonstrates real vulnerability
+* ✅ ARGOS protection shows effective countermeasure
+* ✅ Project demonstrates technical competence
+
+---
+
+===== Timeline Estimate =====
+
+**Stage 2 Complete Integration:**
+
+| Phase | Tasks | Duration | Dependencies |
+|-------|-------|----------|--------------|
+| Phase A | ESP32 Basic Integration | 2-3 days | None (can start now) |
+| Phase B | LCD Display | 2-3 days | Phase A complete |
+| Phase C | IMU Sensor | 3-4 days | Phase B complete |
+| Phase D | Camera Vision | 5-7 days | Camera interface clarified |
+| Phase E | System Integration | 3-5 days | All phases complete |
+| **Total** | **Complete Stage 2** | **15-22 days** | |
+
+**Parallel Work Possible:**
+* Camera interface research (while doing Phase A-C)
+* LCD I2C verification (immediate)
+* Attack vector planning (while doing Phase A-B)
+
+**Realistic Estimate:** 3-4 weeks part-time work
+
+---
+
+===== Next Immediate Steps =====
+
+==== Before Starting Phase A ====
+
+**1. Hardware Verification (NOW):**
+* [ ] Inspect LCD back for I2C module chip
+* [ ] Identify camera interface type (CSI or GPIO pins)
+* [ ] Test AA batteries voltage (should be ~1.2V each)
+* [ ] Verify ESP32 board has sufficient GPIO (most have 30+)
+
+**2. Component Preparation:**
+* [ ] Solder USB Type-C connector to battery cable (or prepare jumpers)
+* [ ] Prepare UART jumper wires (3x: TX, RX, GND)
+* [ ] Label all power cables clearly (avoid confusion)
+
+**3. Software Preparation:**
+* [ ] Install Arduino IDE with ESP32 board support
+* [ ] Install required libraries on Pi:
+  - `pyserial` (UART communication)
+  - `tflite-runtime` (AI models)
+  - `opencv-python` (computer vision)
+* [ ] Set up ESP32 libraries:
+  - `Wire.h` (I2C)
+  - `LiquidCrystal_I2C.h` (LCD)
+  - `MPU6050.h` (IMU)
+  - `ArduinoJson.h` (message parsing)
+
+**4. Documentation:**
+* [ ] Take photos of current system (before modifications)
+* [ ] Create backup of working Stage 1 code
+* [ ] Document current pin mapping (already done in Checkpoint.txt)
+
+---
+
+===== Open Questions Requiring Answers =====
+
+**Critical (Must answer before Phase D):**
+1. Does OV7670 camera have CSI interface or GPIO pins only?
+2. If GPIO pins, how many pins does connection require?
+3. Is camera compatible with Raspberry Pi libraries?
+
+**Important (Should answer before Phase B):**
+4. Does LCD 1602 have I2C module on back?
+5. If no I2C, can we purchase adapter module?
+6. What is LCD I2C address (0x27 or 0x3F)?
+
+**Nice to Have (Can answer during integration):**
+7. Which attack vector to prioritize for demonstration?
+8. How to make hackeo visually dramatic for presentation?
+9. What voice commands are most useful?
+
+---
+
+===== Final Notes =====
+
+**Project Status:**
+* Stage 1: ✅ Complete (motors + sensor working)
+* Stage 2: 🔄 Ready to begin (all decisions made)
+
+**Key Strengths of Current Plan:**
+* Realistic scope for available time/budget
+* Stage-based approach reduces risk
+* Each component adds clear value
+* Dual-brain architecture is technically impressive
+* Hackeo demonstration is attention-grabbing
+
+**Flexibility Built In:**
+* Can defer camera if time/complexity too high
+* IMU optional but highly recommended
+* Attack vector can be simplified if needed
+* System works at each phase (incremental value)
+
+**Documentation Date:** February 7, 2026  
+**Status:** Architecture finalized, ready for Phase A implementation  
+**Next Update:** After Phase A completion (ESP32 communication validated)
+
+---
+
+
