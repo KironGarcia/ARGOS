@@ -1,0 +1,333 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-07T00:00:00+00:00
+
+====== Checkpoint ======
+Created Friday 07 February 2026
+
+===== Documentation Recovery Notice =====
+
+**Important:** Previous documentation of project advances was lost. This checkpoint document summarizes all changes and progress made in the ARGOS-Car project up to this date. This serves as a recovery point to consolidate the current state of the system.
+
+---
+
+===== Current Pin Mapping - Raspberry Pi Zero W =====
+
+==== GPIO Pin Usage ====
+
+|| Component | Physical Pin | GPIO | Function |
+||-----------|--------------|------|----------|
+|| **Motor Controller (L298N)** ||||
+|| GND (Motors) | Pin 6 | GND | Ground reference motors |
+|| GND (Motors) | Pin 14 | GND | Ground reference motors |
+|| ENA | Pin 10 | GPIO 8 | Motor A Enable (PWM) |
+|| ENB | Pin 12 | GPIO 18 | Motor B Enable (PWM) |
+|| IN1 | Pin 11 | GPIO 17 | Motor A Direction 1 |
+|| IN2 | Pin 13 | GPIO 27 | Motor A Direction 2 |
+|| IN3 | Pin 15 | GPIO 22 | Motor B Direction 1 |
+|| IN4 | Pin 16 | GPIO 23 | Motor B Direction 2 |
+|| **HC-SR04 Ultrasonic Sensor** ||||
+|| GND (Sensor) | Pin 9 | GND | Ground reference sensor |
+|| TRIG | Pin 18 | GPIO 24 | Sensor trigger |
+|| ECHO | Pin 19 | GPIO 10 | Sensor echo |
+
+**Notes:**
+* Multiple GND pins used to distribute current safely (Pin 6, 9, 14)
+* ENA and ENB connected for PWM speed control
+* L298N powered with 12V battery (5V_EN jumper INSTALLED - factory default)
+* 12V battery connects directly to L298N "+12V" and "GND" pins
+* L298N "+5V" output pin is NOT used (internal regulator provides logic power)
+
+---
+
+===== Major Hardware Updates =====
+
+==== New Motors and Battery System ====
+
+===== Motor Upgrade Completion =====
+
+**Previous Configuration:**
+* DC 3.7V motors - insufficient torque
+* Car could not move due to lack of power
+* Project was blocked waiting for new motors
+
+**New Configuration:**
+* **Motor Model:** JGA25 12V DC gearmotor
+* **Battery:** 12V 10900mAh dedicated battery
+* **L298N Configuration:** 5V_EN jumper INSTALLED (factory default)
+* **Power Connection:** 12V battery → L298N "+12V" and "GND" only
+* **Status:** ✅ **INSTALLED AND TESTED**
+
+**Test Results:**
+* ✅ Motors successfully installed
+* ✅ Adequate torque to move the car
+* ✅ Traction system working properly
+* ✅ 12V power configuration working correctly
+* ✅ No issues during initial tests
+
+**L298N Power Configuration Details:**
+* **5V_EN Jumper:** INSTALLED (allows internal regulator to work)
+* **+12V Pin:** Connected to 12V battery positive
+* **GND Pin:** Connected to 12V battery negative AND Raspberry Pi GND (Pin 6, 14)
+* **+5V Pin:** NOT USED (internal regulator provides 5V to logic circuits automatically)
+* **Result:** L298N receives adequate 12V power for motors, internal regulator powers logic
+
+===== Speed Testing Phase =====
+
+After confirming basic motor functionality, initial speed tests were conducted:
+* Motors handle speed variations well
+* PWM control working correctly
+* Car movement is stable and controllable
+* Ready for differential drive programming
+
+---
+
+===== Steering System Redesign =====
+
+==== Initial Servo Motor Approach (ABANDONED) ====
+
+**Original Plan:**
+* Use servo motor for front wheel steering
+* Standard car-like steering mechanism
+
+**Problems Encountered:**
+
+===== Problem 1: Zero Point Discovery =====
+* **Issue:** Servo motor initial angle was unknown
+* **Impact:** When commanding "turn right", servo would move from zero point to random position
+* **Result:** When car steering was physically straight, servo was NOT at zero angle
+* **Solution Required:** Had to discover the actual initial angle of the servo before programming turns
+
+===== Problem 2: Servo Motor Quality Issues =====
+* **Issue:** Servo motor exhibited erratic, shaky movement
+* **Symptom:** When turning left or right, motor vibrated and did not execute clean, smooth movements
+* **Analysis:** Servo motor is fragile and not suitable for this project's requirements
+* **Realization:** Programming improvements alone would not fix the hardware limitation
+
+**Decision:** ✅ **COMPLETELY REMOVE SERVO MOTOR FROM PROJECT**
+
+---
+
+==== New Steering Solution: Differential Drive ====
+
+===== The Brilliant Idea =====
+
+Instead of using a servo motor for steering, use **inverted traction between wheels** to control direction.
+
+**Discovery:** This technique already exists and is called **DIFFERENTIAL DRIVE (Differential Traction)**
+
+**How It Works:**
+* Left motor forward + Right motor backward = Turn right
+* Right motor forward + Left motor backward = Turn left
+* Both motors forward = Straight ahead
+* Both motors backward = Reverse
+
+===== Why This Works for ARGOS =====
+
+**Advantages:**
+1. ✅ **Motors already installed** - no new hardware needed
+2. ✅ **12V motors are powerful** - sufficient torque for differential steering
+3. ✅ **Independent power supply** - 12V battery dedicated to motors
+4. ✅ **Software-controlled** - just needs proper programming logic
+5. ✅ **No fragile servo** - eliminates unreliable component
+
+**Implementation Status:** 🔄 Logic programming in progress
+
+---
+
+===== Front Wheel Challenge =====
+
+==== Problem: Fixed Front Wheels ====
+
+**Issue:** Front wheels are fixed (do not rotate sideways), creating more work for rear motors to execute turns.
+
+**Analysis:**
+* Fixed front wheels increase friction during turns
+* Rear motors must work harder to pivot the car
+* Could affect turning radius and smoothness
+
+===== Solutions Applied =====
+
+**Solution 1: Limited Turning Requirements**
+* ✅ For project presentation, car does NOT need complex curves
+* ✅ Only needs slight obstacle deviation maneuvers
+* ✅ Differential drive is sufficient for required movements
+
+**Solution 2: Wheel Friction Optimization**
+* **All wheels:** 3D printed (naturally low friction with floor)
+* **Rear wheels:** Add rubber/foam to increase traction
+* **Front wheels:** Keep low friction (will slide during turns)
+* **Result:** Front wheels slide, rear wheels grip, improving turn efficiency
+
+**Expected Outcome:** Higher percentage of successful turning maneuvers
+
+---
+
+===== Project Stages Overview =====
+
+==== Stage 1: Basic System Validation (CURRENT) ====
+
+**Objective:** Ensure fundamental car functionality before ESP32 integration
+
+**Components Active:**
+* ✅ Raspberry Pi Zero W (main controller)
+* ✅ HC-SR04 Ultrasonic Sensor (obstacle detection)
+* ✅ JGA25 12V Motors (traction)
+* ✅ L298N Motor Controller
+* ✅ 12V battery system
+
+**Stage 1 Requirements (Checklist):**
+* ✅ Car moves forward reliably
+* ✅ Car moves backward reliably
+* ✅ Obstacle detection working
+* 🔄 **Differential drive logic tested** ← NEXT TASK
+* 🔄 Car can change direction using motor inversion
+* 🔄 Basic autonomous navigation validated
+
+**Current Task:** Test and validate differential drive turning logic
+
+---
+
+==== Stage 2: Dual-Brain Architecture (UPCOMING) ====
+
+**Objective:** Migrate to distributed processing system with ESP32
+
+**Migration Plan:**
+
+===== Phase A: ESP32 Integration =====
+* Connect ESP32 to Raspberry Pi via UART
+* Establish bidirectional communication protocol
+* Test data exchange between controllers
+
+===== Phase B: Component Distribution =====
+
+**ESP32 Will Handle:**
+* HC-SR04 Ultrasonic Sensor (real-time processing)
+* IMU Sensor (orientation and acceleration)
+* LCD 1602 Display (status messages)
+* Servo Motor for Antenna (emotional expression)
+* Audio System (microphone + speaker)
+* CAN Bus Peripheral Control
+
+**Raspberry Pi Will Handle:**
+* OV7670 Camera (computer vision)
+* AI/ML Algorithms (decision-making)
+* Navigation Logic (high-level planning)
+* System Coordination (sending commands to ESP32)
+
+===== Phase C: Gradual Component Addition =====
+* **Step 1:** Migrate HC-SR04 sensor to ESP32
+* **Step 2:** Add IMU sensor for terrain detection
+* **Step 3:** Integrate LCD display for status messages
+* **Step 4:** Add audio system (R2-D2 style communication)
+* **Step 5:** Connect camera for computer vision
+* **Step 6:** Implement CAN bus peripheral control
+
+**Approach:** Each component will be added and tested individually, ensuring system stability before proceeding to next component.
+
+---
+
+===== Current System Status =====
+
+==== Working Components ====
+* ✅ **Raspberry Pi Zero W:** WiFi configured, SSH via `argos.local`
+* ✅ **12V Motors:** JGA25 installed, tested, adequate traction
+* ✅ **Motor Controller:** L298N configured with dual 5V power
+* ✅ **Ultrasonic Sensor:** HC-SR04 detecting obstacles correctly
+* ✅ **Power System:** 12V battery for motors, powerbank for Pi
+* ✅ **Speed Control:** PWM working, motors handle variable speeds well
+
+==== In Progress ====
+* 🔄 **Differential Drive Logic:** Programming and testing turning maneuvers
+* 🔄 **Wheel Traction Optimization:** Adding rubber to rear wheels
+
+==== Pending (Stage 2) ====
+* ⏳ **ESP32 Integration:** Hardware purchased, awaiting Stage 1 completion
+* ⏳ **Camera Module:** OV7670 ready for installation
+* ⏳ **IMU Sensor:** To be integrated with ESP32
+* ⏳ **LCD Display:** 1602 character display pending
+* ⏳ **Audio System:** Microphone and speaker extraction from old phones
+* ⏳ **CAN Bus Module:** MCP2515 for peripheral management
+
+---
+
+===== Next Steps =====
+
+==== Immediate Actions (Stage 1 Completion) ====
+
+1. **Test Differential Drive Logic:**
+   * Program turn left function (left motor backward, right motor forward)
+   * Program turn right function (right motor backward, left motor forward)
+   * Test turning radius and smoothness
+   * Validate obstacle avoidance with turning maneuvers
+
+2. **Optimize Wheel Traction:**
+   * Add rubber/foam to rear wheels
+   * Test turning improvement with increased traction
+   * Validate front wheel sliding behavior
+
+3. **Integration Testing:**
+   * Combine obstacle detection + differential drive
+   * Test autonomous navigation with turning capability
+   * Validate system stability during maneuvers
+
+4. **Stage 1 Validation:**
+   * Confirm car can navigate autonomously
+   * Confirm car can avoid obstacles by turning
+   * Confirm system is stable and reliable
+
+==== After Stage 1 Completion ====
+
+5. **Begin Stage 2:**
+   * Procure ESP32 development board (if not already available)
+   * Plan component migration strategy
+   * Start ESP32 programming and UART communication setup
+
+---
+
+===== Key Decisions Made =====
+
+==== Design Changes ====
+* ❌ **Servo motor removed** - unreliable and unnecessary
+* ✅ **Differential drive adopted** - simpler, more reliable, already have hardware
+* ✅ **Fixed front wheels accepted** - sufficient for project requirements
+* ✅ **Friction optimization planned** - rubber on rear, smooth front wheels
+
+==== Technical Approach ====
+* ✅ **Stage-based development** - validate basic functionality before complexity
+* ✅ **Gradual ESP32 integration** - component-by-component migration
+* ✅ **Hardware-first validation** - ensure physical system works before advanced features
+
+---
+
+===== Lessons Learned =====
+
+1. **Hardware Quality Matters:**
+   * Cheap servo motor caused more problems than it solved
+   * Sometimes the best solution is to remove problematic components
+
+2. **Simpler Can Be Better:**
+   * Differential drive is mechanically simpler than servo steering
+   * Uses existing hardware instead of adding complexity
+
+3. **Work With What You Have:**
+   * Fixed front wheels are not ideal, but acceptable for project scope
+   * Friction optimization can compensate for mechanical limitations
+
+4. **Stage-Based Development:**
+   * Validate basic functionality before adding advanced features
+   * Reduces debugging complexity when problems occur
+
+---
+
+===== Documentation Date =====
+
+**Created:** February 7, 2026  
+**Project Phase:** Stage 1 - Basic System Validation  
+**Next Milestone:** Differential Drive Testing  
+**Stage 2 Start:** After Stage 1 validation complete
+
+---
+
+**Status:** 📝 Checkpoint documentation complete - All advances consolidated
+

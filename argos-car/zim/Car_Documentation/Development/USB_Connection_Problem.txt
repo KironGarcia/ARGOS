@@ -623,3 +623,4 @@ sudo nmcli device wifi connect "KironStarlink"
 **Last Updated:** February 5, 2026  
 **Status:** USB troubleshooting completed, WiFi working, iotrac configuration pending
 
+
