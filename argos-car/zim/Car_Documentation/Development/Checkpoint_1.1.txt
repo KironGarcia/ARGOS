@@ -1,0 +1,339 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-08T00:00:00+00:00
+
+====== Checkpoint 1.1 ======
+Created Saturday 08 February 2026
+
+===== Resumen de Sesión: Calibración de Motores y Optimización de Pines =====
+
+**Status:** ✅ COMPLETADO - Ambos motores calibrados y girando correctamente hacia adelante
+
+**Fecha:** 08 de Febrero 2026  
+**Fase del Proyecto:** Stage 1 - Validación Básica del Sistema
+
+---
+
+===== Problemas Encontrados y Soluciones =====
+
+==== Problema 1: Motor B No Respondía ====
+
+**Síntoma:**
+* Motor B no giraba en absoluto al ejecutar código demo
+* Motor A funcionaba perfectamente
+* No era problema de hardware (motores probados individualmente funcionaban)
+
+**Causa Raíz Identificada:**
+* Código inicial NO incluía los pines ENA y ENB para control PWM
+* Los motores L298N necesitan señal HIGH en ENA/ENB para funcionar
+* Sin estos pines configurados, Motor B estaba completamente deshabilitado
+
+**Solución:**
+* Agregados pines ENA (GPIO 8, Pin 10) y ENB (GPIO 18, Pin 12) al código
+* Configurados como salidas GPIO en HIGH para habilitar motores
+
+**Resultado:** Motor B comenzó a girar, pero con respuesta débil y lenta
+
+---
+
+==== Problema 2: Pin de Audio Causando Señal Débil en Motor B ====
+
+**Síntoma Crítico Descubierto:**
+* Motor B respondía más lento que Motor A
+* Señal PWM parecía débil o inestable
+* Motor B tenía menos fuerza y respuesta retardada
+
+**Análisis del Problema:**
+
+**Configuración Original:**
+```
+ENB = GPIO 18 (Pin 12) ← PROBLEMA AQUÍ
+```
+
+**Descubrimiento Importante:**
+* Pin 12 (GPIO 18) es **PCM_CLK** (Pin de reloj de audio digital)
+* Este pin tiene **función especial dedicada** para audio PCM
+* Usar pines con funciones especiales para PWM causa:
+  - ❌ Señal débil e inestable
+  - ❌ Respuesta lenta del motor
+  - ❌ Posibles conflictos con sistema de audio
+  - ❌ PWM de baja calidad
+
+**Solución Implementada:**
+* Investigación completa del pinout Raspberry Pi Zero W
+* Identificación de pines **general purpose** sin funciones especiales
+* Cambio de ENB a GPIO 20 (Pin 38) - pin limpio sin conflictos
+
+**Configuración Corregida:**
+```
+ENA = GPIO 26 (Pin 37) ✅ General Purpose
+ENB = GPIO 20 (Pin 38) ✅ General Purpose
+```
+
+**Resultado:** ✅ Motor B ahora responde con **fuerza completa** y **velocidad igual** a Motor A
+
+---
+
+==== Problema 3: Direcciones de Motores Invertidas ====
+
+**Contexto:**
+* Durante desarrollo inicial, Motor A tenía cables físicamente invertidos
+* Código compensaba esta inversión con lógica inversa
+* Posteriormente, cables fueron corregidos físicamente
+
+**Síntoma:**
+* Código antiguo (con inversión en software) + cables corregidos = direcciones confusas
+* Motor B giraba en dirección opuesta esperada
+
+**Solución:**
+* Actualización del código para que ambos motores usen **señales idénticas**
+* Lógica simplificada:
+  - IN1=HIGH, IN2=LOW → Motor A adelante
+  - IN3=HIGH, IN4=LOW → Motor B adelante (ahora igual que A)
+
+**Resultado:** ✅ Ambos motores giran hacia adelante con señales idénticas
+
+---
+
+===== Lección Aprendida: Importancia de los Pines en Raspberry Pi =====
+
+==== ⚠️ LECCIÓN CRÍTICA PARA EL PROYECTO ====
+
+**Descubrimiento Importante:**
+
+**NO TODOS LOS PINES GPIO SON IGUALES**
+
+Raspberry Pi Zero W tiene pines con **funciones especiales dedicadas:**
+* Pines SPI (MOSI, MISO, SCLK, CE)
+* Pines I2C (SDA, SCL)
+* Pines UART (TX, RX)
+* Pines PCM (Audio digital)
+* Pines de Hardware PWM
+
+**Regla de Oro:**
+
+✅ **SIEMPRE verificar el pinout ANTES de conectar componentes**
+
+✅ **Preferir pines "General Purpose" sin funciones especiales**
+
+✅ **Documentar funciones especiales de cada pin usado**
+
+**Pines a Evitar para Control de Motores:**
+* ❌ Pin 10 (GPIO 8)  - SPI0 CE0
+* ❌ Pin 12 (GPIO 18) - PCM_CLK (Audio) ← **Problema encontrado aquí**
+* ❌ Pin 19 (GPIO 10) - MOSI (SPI)
+* ❌ Pin 21 (GPIO 9)  - MISO (SPI)
+* ❌ Pin 23 (GPIO 11) - SCLK (SPI)
+
+**Pines Recomendados (General Purpose):**
+* ✅ Pin 37 (GPIO 26) - Sin funciones especiales
+* ✅ Pin 38 (GPIO 20) - Sin funciones especiales
+* ✅ Pin 22 (GPIO 25) - Sin funciones especiales
+* ✅ Pin 36 (GPIO 16) - Sin funciones especiales
+
+**Impacto en el Proyecto:**
+* Stage 2 usará comunicación I2C, SPI, UART
+* Reservar pines especiales para sus funciones dedicadas
+* Usar pines GP para control de motores evita conflictos futuros
+
+---
+
+===== Mapeo Final de Pines - Configuración Validada =====
+
+==== Raspberry Pi Zero W - Pin Mapping Actualizado ====
+
+|| Component | Physical Pin | GPIO | Function | Status |
+||-----------|--------------|------|----------|--------|
+|| **Motor Controller (L298N)** ||||||
+|| ENA | Pin 37 | GPIO 26 | Motor A Enable (PWM) | ✅ OPTIMIZADO |
+|| ENB | Pin 38 | GPIO 20 | Motor B Enable (PWM) | ✅ OPTIMIZADO |
+|| IN1 | Pin 11 | GPIO 17 | Motor A Direction 1 | ✅ Validado |
+|| IN2 | Pin 13 | GPIO 27 | Motor A Direction 2 | ✅ Validado |
+|| IN3 | Pin 15 | GPIO 22 | Motor B Direction 1 | ✅ Validado |
+|| IN4 | Pin 16 | GPIO 23 | Motor B Direction 2 | ✅ Validado |
+|| GND | Pin 6, 14 | GND | Ground reference | ✅ Validado |
+|| **HC-SR04 Ultrasonic Sensor** ||||||
+|| TRIG | Pin 19 | GPIO 10 | Sensor trigger | ⚠️ MOSI - Funciona ahora |
+|| ECHO | Pin 21 | GPIO 9 | Sensor echo | ⚠️ MISO - Funciona ahora |
+|| GND | Pin 9 | GND | Ground reference | ✅ Validado |
+
+**Notas:**
+* ENA/ENB movidos a Pins 37/38 para optimizar señal PWM
+* Pines 37/38 son General Purpose - sin conflictos
+* Sensor ultrasónico en pines SPI - funcional ahora, posible conflicto en Stage 2
+* Todos los pines de dirección (IN1-IN4) validados y funcionando
+
+---
+
+===== Script de Diagnóstico: motor_direction_test.py =====
+
+==== Propósito del Script ====
+
+**Archivo:** `motor_direction_test.py`  
+**Función:** Script de diagnóstico para verificar direcciones de motores
+
+**¿Cuándo Usar Este Script?**
+
+✅ **Después de cambiar conexiones físicas** de motores  
+✅ **Después de modificar código** de control de motores  
+✅ **Al detectar comportamiento anormal** en navegación  
+✅ **Antes de demos importantes** - validación rápida  
+✅ **Después de Stage 2 migration** - revalidar configuración  
+
+**¿Qué Hace el Script?**
+
+1. **Test Motor A Solo:**
+   - Gira Motor A a 30% velocidad por 3 segundos
+   - Usuario confirma si gira hacia ADELANTE
+   - OUT1/OUT2 del L298N
+
+2. **Test Motor B Solo:**
+   - Gira Motor B a 30% velocidad por 3 segundos
+   - Usuario confirma si gira hacia ADELANTE
+   - OUT3/OUT4 del L298N
+
+3. **Test Ambos Motores:**
+   - Gira ambos simultáneamente a 30%
+   - Verifica que van en la misma dirección
+
+4. **Resumen de Diagnóstico:**
+   - ✅ Direcciones correctas → Listo para usar
+   - ❌ Direcciones invertidas → Instrucciones para corregir
+
+**Configuración del Script:**
+```python
+# Pines actualizados
+ENA = 26  # Pin 37 - Motor A Enable (PWM)
+ENB = 20  # Pin 38 - Motor B Enable (PWM)
+IN1 = 17  # Pin 11 - Motor A Direction 1
+IN2 = 27  # Pin 13 - Motor A Direction 2
+IN3 = 22  # Pin 15 - Motor B Direction 1
+IN4 = 23  # Pin 16 - Motor B Direction 2
+```
+
+**Uso:**
+```bash
+sudo python3 motor_direction_test.py
+```
+
+**Resultado Esperado:**
+```
+✅ Motor A: Dirección correcta (OUT1/OUT2)
+✅ Motor B: Dirección correcta (OUT3/OUT4)
+🎉 ¡AMBOS MOTORES CONFIGURADOS CORRECTAMENTE!
+```
+
+---
+
+===== Verificación de Funcionamiento =====
+
+==== Tests Realizados ====
+
+**Test 1: Motor A Individual** ✅
+* Gira hacia adelante correctamente
+* Velocidad estable a 30% PWM
+* Respuesta inmediata al comando
+
+**Test 2: Motor B Individual** ✅
+* Gira hacia adelante correctamente
+* Velocidad estable a 30% PWM
+* **Respuesta mejorada significativamente** después de cambio de pin
+
+**Test 3: Ambos Motores Simultáneos** ✅
+* Ambos giran hacia adelante
+* Velocidades equilibradas
+* Sin vibraciones o comportamiento errático
+
+**Test 4: Verificación de Señal PWM** ✅
+* ENA (Pin 37) - Señal limpia y fuerte
+* ENB (Pin 38) - Señal limpia y fuerte
+* No hay diferencia perceptible entre Motor A y Motor B
+
+---
+
+===== Estado del Sistema Post-Calibración =====
+
+==== Componentes Validados ====
+
+✅ **Raspberry Pi Zero W:**
+* GPIO configurado correctamente
+* PWM funcionando en pines optimizados
+* Sin conflictos de pines
+
+✅ **L298N Motor Controller:**
+* ENA/ENB conectados y funcionando
+* IN1-IN4 configurados correctamente
+* Alimentación 12V estable
+
+✅ **Motores JGA25 12V:**
+* Ambos motores girando hacia adelante
+* Direcciones calibradas y validadas
+* Respuesta rápida y equilibrada
+
+✅ **HC-SR04 Sensor:**
+* Funcionando correctamente (sin cambios)
+* Detección de obstáculos operativa
+
+---
+
+===== Próximos Pasos =====
+
+==== Ready for Next Phase ====
+
+Con los motores calibrados correctamente:
+
+**Inmediato:**
+* ✅ Probar script `demo.py` con nueva configuración de pines
+* ✅ Validar tração diferencial (giros) con motores calibrados
+* ✅ Test de navegación autónoma básica
+
+**Stage 1 Completion:**
+* Test de prueba de curva (differential drive)
+* Test completo de navegación con obstáculos
+* Validación de sistema integrado
+
+**Preparación Stage 2:**
+* Documentar pines disponibles para ESP32
+* Reservar pines SPI para futura cámara
+* Planear migración de sensor a ESP32
+
+---
+
+===== Conclusiones =====
+
+==== Logros de Esta Sesión ====
+
+1. ✅ **Problema de Motor B resuelto** - Pin de audio identificado y corregido
+2. ✅ **Direcciones calibradas** - Ambos motores giran correctamente hacia adelante
+3. ✅ **Script de diagnóstico creado** - Herramienta para validación futura
+4. ✅ **Documentación completa** - Lecciones aprendidas sobre pines documentadas
+5. ✅ **Sistema optimizado** - Pines general purpose para mejor rendimiento
+
+==== Lecciones Críticas ====
+
+**Lección 1:** No todos los pines GPIO son iguales - verificar funciones especiales
+
+**Lección 2:** Pines con funciones dedicadas (audio, SPI, etc.) causan problemas con PWM
+
+**Lección 3:** Usar pines General Purpose para componentes críticos como motores
+
+**Lección 4:** Scripts de diagnóstico son esenciales para validación rápida
+
+**Lección 5:** Documentar problemas y soluciones ahorra tiempo en el futuro
+
+---
+
+===== Referencias =====
+
+* Checkpoint original: `Checkpoint.txt` (Febrero 07, 2026)
+* Script de diagnóstico: `motor_direction_test.py`
+* Script principal actualizado: `demo.py`
+* Raspberry Pi Zero W Pinout: https://pinout.xyz/
+
+---
+
+**Documentado por:** AI Assistant con validación del usuario  
+**Fecha:** 08 de Febrero 2026  
+**Status Final:** ✅ SISTEMA CALIBRADO Y VALIDADO  
+**Próxima Actualización:** Después de completar tests de tração diferencial
+
