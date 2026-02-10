@@ -1,0 +1,343 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== First Steps with ESP32 ======
+Created Monday 10 February 2026
+
+===== Session Summary: ESP32 Initial Setup and LED Testing =====
+
+**Date:** February 10, 2026  
+**Status:** ✅ **SUCCESSFUL** - ESP32 configured and LED system tested  
+**Objective:** First ESP32 power-on, Arduino IDE setup, and LED connection testing
+
+---
+
+===== Initial Setup: Arduino IDE Installation =====
+
+==== Step 1: Download and Extract ====
+
+**Arduino IDE Version:** 1.8.19 (Linux 64-bit)  
+**Source:** Official Arduino website  
+**File:** `arduino-1.8.19-linux64.tar.xz`
+
+**Extraction:**
+```bash
+cd ~/Downloads
+tar -xf arduino-1.8.19-linux64.tar.xz
+```
+
+**Result:** ✅ Successfully extracted to `~/Downloads/arduino-1.8.19/`
+
+---
+
+==== Step 2: Installation ====
+
+**Installation Method:**
+```bash
+cd ~/Downloads/arduino-1.8.19
+sudo ./install.sh
+```
+
+**Result:** ✅ Installation completed successfully  
+**Location:** `/usr/local/bin/arduino`  
+**Status:** Arduino IDE accessible from system menu and command line
+
+---
+
+==== Step 3: ESP32 Support Configuration ====
+
+**Process:**
+
+1. **Add ESP32 Board Manager URL:**
+   - Arduino IDE → File → Preferences
+   - Additional Board Manager URLs:
+   ```
+   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   ```
+
+2. **Install ESP32 Package:**
+   - Tools → Board → Board Manager
+   - Search: "esp32"
+   - Install: "esp32 by Espressif Systems"
+
+**Result:** ✅ ESP32 support successfully installed
+
+---
+
+==== Step 4: ESP32 Hardware Connection ====
+
+**Connection:**
+- ESP32 connected via USB Type-C data cable
+- Port detected: `/dev/ttyUSB0`
+- Board selected: "ESP32 Dev Module"
+
+**Verification:**
+- ✅ ESP32 power LED illuminated (red)
+- ✅ ESP32 status LED blinking (blue/purple)
+- ✅ Serial port recognized by Arduino IDE
+
+---
+
+===== LED System Testing =====
+
+==== Hardware Configuration ====
+
+**LEDs Used:**
+- **Yellow LED (Normal State):** GPIO 5
+- **Red LED (Attack State):** GPIO 18
+
+**Power Supply:**
+- ESP32 3.3V → Red rail (positive) on breadboard
+- ESP32 GND → Blue rail (negative) on breadboard
+
+**Connections:**
+```
+GPIO 5  → Resistor (220Ω or 330Ω) → Yellow LED anode → LED cathode → GND
+GPIO 18 → Resistor (220Ω or 330Ω) → Red LED anode → LED cathode → GND
+```
+
+**Pin Selection Rationale:**
+- GPIO 2 and GPIO 4 initially tested (had issues - strapping pins)
+- Changed to GPIO 5 and GPIO 18 (more reliable, no boot conflicts)
+- GPIO 5 and GPIO 18 confirmed working perfectly
+
+---
+
+==== Initial Testing Problems ====
+
+==== Problem 1: LEDs Not Lighting ====
+
+**Symptom:**
+- Code uploaded successfully
+- No LED activity observed
+- Only ESP32 status LED visible
+
+**Investigation:**
+- Verified power supply: 3.3V measured with multimeter ✅
+- Verified breadboard rails: Positive and negative confirmed ✅
+- Verified LED polarity: Long leg (anode) and short leg (cathode) correct ✅
+- Verified resistors: Properly connected ✅
+- Verified GPIO connections: Jumpers connected to correct pins ✅
+
+**Root Cause Identified:**
+- **Poor contact in breadboard** - LEDs not making proper electrical contact
+- Loose connections preventing current flow
+
+**Solution:**
+- Reseated LEDs in breadboard with better contact
+- Ensured firm connection of all components
+- Result: ✅ LEDs began working immediately
+
+**Lesson Learned:**
+- Breadboard contact quality is critical
+- Always verify physical connections before troubleshooting code
+- Multimeter measurements don't guarantee good breadboard contact
+
+---
+
+==== Problem 2: PWM Function Compatibility ====
+
+**Symptom:**
+- Code using `ledcSetup()` and `ledcAttachPin()` failed to compile
+- Error: `'ledcSetup' was not declared in this scope`
+
+**Root Cause:**
+- ESP32 Arduino core version compatibility issue
+- Some PWM functions not available in this version
+
+**Solution:**
+- Switched to `analogWrite()` function
+- More compatible across ESP32 Arduino core versions
+- Result: ✅ Code compiled and worked perfectly
+
+**Final Working Code:**
+- Uses `analogWrite()` for PWM control
+- Compatible with current ESP32 Arduino core
+- Smooth fade effects achieved
+
+---
+
+===== Final Working Code =====
+
+**Code Location:** `alexa-architecture/src/led_test_reference.txt`
+
+**Functionality:**
+- Yellow LED: Smooth fade in (0-100%) over 3 seconds
+- Yellow LED: Smooth fade out (100-0%) over 3 seconds
+- Red LED: Smooth fade in (0-100%) over 3 seconds
+- Red LED: Smooth fade out (100-0%) over 3 seconds
+- Continuous loop with 500ms pause between LEDs
+
+**Performance:**
+- Smooth, dramatic fade effects
+- Perfect timing (3 seconds up, 3 seconds down)
+- No flickering or abrupt changes
+- Satisfactory visual result
+
+---
+
+===== Pin Mapping Reference =====
+
+**Confirmed Working Pins:**
+```
+GPIO 5  → Yellow LED (Normal State) ✅
+GPIO 18 → Red LED (Attack State) ✅
+```
+
+**Power Pins:**
+```
+3.3V → Breadboard positive rail ✅
+GND  → Breadboard negative rail ✅
+```
+
+**Notes:**
+- GPIO 2 and GPIO 4 avoided (strapping pins, boot conflicts)
+- GPIO 5 and GPIO 18 are safe, general-purpose pins
+- These pins will be used in final project implementation
+
+---
+
+===== Future Implementation Plan =====
+
+**LED Behavior in Final Project:**
+
+**Normal Operation:**
+- Yellow LED: Continuously blinking/pulsing
+- Indicates system is operational and ready
+- Visual feedback that "Alexa China" is active
+
+**Attack Detection:**
+- When Raspberry Pi is hacked:
+  - Yellow LED stops
+  - Red LED activates
+  - Visual indication of security breach
+  - Dramatic effect for demonstration
+
+**Code Reference:**
+- Current test code serves as pin mapping reference
+- Will be adapted for final project requirements
+- Fade function can be reused or modified as needed
+
+---
+
+===== Key Achievements =====
+
+**Hardware:**
+* ✅ ESP32 successfully powered on for first time
+* ✅ USB Type-C data cable working correctly
+* ✅ Serial communication established (`/dev/ttyUSB0`)
+* ✅ Power supply verified (3.3V output confirmed)
+
+**Software:**
+* ✅ Arduino IDE installed and configured
+* ✅ ESP32 support package installed
+* ✅ First code successfully uploaded
+* ✅ LED control code working perfectly
+
+**Testing:**
+* ✅ Yellow LED functioning (GPIO 5)
+* ✅ Red LED functioning (GPIO 18)
+* ✅ Smooth fade effects achieved
+* ✅ Pin mapping confirmed and documented
+
+**Problem Solving:**
+* ✅ Identified and resolved breadboard contact issue
+* ✅ Resolved PWM function compatibility
+* ✅ Found optimal pin configuration (GPIO 5, GPIO 18)
+
+---
+
+===== Lessons Learned =====
+
+**1. Breadboard Quality Matters:**
+- Poor contact can prevent components from working
+- Always verify physical connections before code troubleshooting
+- Reseating components often solves connection issues
+
+**2. Pin Selection is Critical:**
+- Not all GPIO pins are equal on ESP32
+- Strapping pins (GPIO 0, 2, 4, 12, 15) can cause boot issues
+- General-purpose pins (GPIO 5, 18, 19, etc.) are safer
+
+**3. Code Compatibility:**
+- Different ESP32 Arduino core versions have different APIs
+- `analogWrite()` is more compatible than `ledcSetup()`
+- Always test with simple code first
+
+**4. Systematic Troubleshooting:**
+- Verify power supply first
+- Check physical connections
+- Then troubleshoot code
+- Multimeter is essential tool
+
+---
+
+===== Next Steps =====
+
+**Immediate:**
+* ✅ LED system tested and working
+* ✅ Pin mapping documented
+* ✅ Code reference saved
+
+**Future Development:**
+* ⏳ Integrate LED control into main "Alexa China" code
+* ⏳ Add WiFi connectivity
+* ⏳ Implement voice recognition system
+* ⏳ Connect to Raspberry Pi via WiFi
+* ⏳ Implement attack simulation
+
+**Code Evolution:**
+- Current test code: Simple LED fade demonstration
+- Final code: LED status based on system state (normal/attack)
+- Will use same pin mapping (GPIO 5, GPIO 18)
+- Fade function can be adapted for status indication
+
+---
+
+===== Technical Details =====
+
+**ESP32 Model:** ESP32 Dev Module  
+**Chip:** ESP32-D0WD-V3 (revision v3.1)  
+**Features:** Wi-Fi, BT, Dual Core, 240MHz  
+**MAC Address:** 6c:c8:40:8b:15:f8  
+**Serial Port:** /dev/ttyUSB0  
+**Baud Rate:** 115200 (for serial monitor)
+
+**Arduino IDE:**
+- Version: 1.8.19
+- ESP32 Core: Installed via Board Manager
+- Compilation: Successful (284KB program, 20KB RAM)
+
+**Code Statistics:**
+- Program storage: 284,075 bytes (21% of 1,310,720 bytes)
+- Global variables: 20,800 bytes (6% of 327,680 bytes)
+- Memory usage: Well within limits ✅
+
+---
+
+===== Documentation References =====
+
+**Code Files:**
+* `alexa-architecture/src/led_test_reference.txt` - Working LED test code
+
+**Hardware Documentation:**
+* `Hardware/ESP32_Technical_Reference.txt` - ESP32 pinout and specifications
+* `Hardware/Raspberry_Pi_Pin_Mapping.txt` - Pi pin usage for reference
+
+**Project Documentation:**
+* `Stage_2-Alexa_China.txt` - Overall project overview
+
+---
+
+**Documented By:** AI Assistant with user validation  
+**Date:** February 10, 2026  
+**Status:** ✅ **FIRST SESSION COMPLETE**  
+**Next Update:** After WiFi integration or voice system development
+
+---
+
+**ESP32 is not just a microcontroller.**  
+**ESP32 is the foundation of ARGOS "Alexa China".**
+
+🔌💡✨

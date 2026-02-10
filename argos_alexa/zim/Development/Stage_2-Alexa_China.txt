@@ -1,0 +1,461 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== Stage 2 - Alexa China ======
+Created Monday 10 February 2026
+
+===== Project Evolution: From Dual-Brain to IoT Security Demo =====
+
+**Project Phase:** Stage 2 - "Alexa China" Voice Interface & Security Demonstration  
+**Status:** 🚀 **INITIALIZATION PHASE** - Hardware documentation and planning  
+**Date:** February 10, 2026
+
+---
+
+===== The Brilliant Pivot =====
+
+==== Original Vision (Cancelled) ====
+
+**Initial Plan:**
+* Complex dual-brain architecture (Raspberry Pi + ESP32)
+* ESP32 managing critical sensors and motor control
+* Camera with computer vision
+* IMU for orientation tracking
+* Complex autonomous navigation algorithms
+
+**Why It Changed:**
+* Technical complexity without clear narrative value
+* Difficult to explain to non-technical audience
+* Focus on "circus tricks" instead of core message
+* Over-engineering for demonstration purposes
+
+---
+
+==== New Vision: "Alexa China" IoT Security Demo ====
+
+**The Concept:**
+> Transform ESP32 into a vulnerable "cheap Chinese Alexa" device that serves as both voice interface and attack vector for the ARGOS security demonstration.
+
+**Core Narrative:**
+* User buys "cheap IoT voice assistant" (ESP32 device)
+* Device has security vulnerabilities (weak credentials, open ports)
+* Attacker exploits device to gain control of car
+* ARGOS security app detects and blocks the attack
+* Physical demonstration of real IoT vulnerability
+
+**Why This Works:**
+* ✅ Relatable - Everyone knows what Alexa is
+* ✅ Scary - "My cheap device could hack my car?!"
+* ✅ Educational - Shows real vulnerability chain
+* ✅ Impressive - ARGOS stops the attack dramatically
+* ✅ Tangible - Physical demonstration, not slides
+
+---
+
+===== Project Objectives =====
+
+==== Primary Goals ====
+
+**1. Voice Interface System:**
+* ESP32-based voice recognition
+* Wake word detection ("Hey ARGOS")
+* Simple command matching (5-10 basic commands)
+* Text-to-Speech responses
+* Physical "Alexa China" device visible to audience
+
+**2. Attack Simulation:**
+* Demonstrate IoT device vulnerability
+* Show credential weakness exploitation
+* Simulate privilege escalation to Raspberry Pi
+* Visual "hacker terminal" display
+* Car responds to attacker commands
+
+**3. ARGOS Defense:**
+* Intrusion Detection System (IDS)
+* Anomaly pattern recognition
+* Automatic threat response
+* Emergency brake activation
+* System recovery protocol
+
+**4. Presentation Impact:**
+* 2-3 minute demonstration
+* Clear narrative arc (normal → attack → defense)
+* Audience understands vulnerability
+* ARGOS protection clearly visible
+
+---
+
+===== Component Overview =====
+
+==== Hardware Components ====
+
+**ESP32 Development Board:**
+* Main controller for voice system
+* I2S interface for microphone
+* DAC output for speaker
+* UART communication with Raspberry Pi
+* Power: 4x AA batteries (4.8V)
+
+**INMP441 Microphone (I2S):**
+* High-quality digital microphone
+* I2S interface (3 wires: VDD, GND, WS, SCK, SD)
+* Low power consumption
+* Professional audio quality
+
+**PAM8403 Amplifier Module:**
+* Class-D audio amplifier
+* 3W output power
+* Low voltage operation (2.5V-5.5V)
+* Perfect for ESP32 DAC output
+
+**Speaker 4Ω 3W:**
+* Matched to amplifier output
+* Good frequency response
+* Compact size for car integration
+
+**Raspberry Pi Zero W:**
+* Car control and security monitoring
+* Receives voice commands via UART
+* Executes motor control
+* Runs ARGOS security algorithms
+
+---
+
+===== System Architecture =====
+
+==== Communication Flow ====
+
+**Normal Operation:**
+```
+User Voice → INMP441 Mic → ESP32 (Wake Word Detection)
+         → ESP32 (Command Recognition)
+         → ESP32 → UART → Raspberry Pi
+         → Pi (Motor Control / Status)
+         → ESP32 ← UART ← Pi (Response)
+         → ESP32 → PAM8403 → Speaker
+         → User hears: "Moving forward"
+```
+
+**Attack Sequence:**
+```
+Attacker → Exploits ESP32 (telnet/credentials)
+        → Gains ESP32 shell access
+        → Injects commands via UART
+        → Raspberry Pi receives malicious commands
+        → Car moves without user permission
+        → ARGOS detects anomaly
+        → Emergency brake activated
+        → ESP32 isolated
+        → System recovered
+```
+
+---
+
+===== Development Phases =====
+
+==== Phase 1: Hardware Integration (Current) ====
+
+**Objective:** Document and prepare all hardware components
+
+**Tasks:**
+* ✅ Create hardware documentation for each component
+* ✅ Map ESP32 pinout for voice system
+* ✅ Document Raspberry Pi pin usage (for UART communication)
+* ✅ Plan physical assembly and wiring
+* ⏳ Wait for component delivery (March 2026)
+
+**Status:** Documentation phase in progress
+
+---
+
+==== Phase 2: ESP32 Voice System (After Component Arrival) ====
+
+**Objective:** Build functional voice interface
+
+**Tasks:**
+* Connect INMP441 microphone to ESP32 (I2S)
+* Connect PAM8403 + Speaker to ESP32 (DAC)
+* Implement wake word detection
+* Implement command recognition (5-10 commands)
+* Add Text-to-Speech responses
+* Test voice recognition accuracy
+
+**Success Criteria:**
+* Wake word detected reliably (>90%)
+* Commands recognized correctly (>80% in quiet room)
+* Response time <500ms
+* Audio output clear and audible
+
+---
+
+==== Phase 3: UART Communication Protocol (After Phase 2) ====
+
+**Objective:** Establish reliable communication between ESP32 and Raspberry Pi
+
+**Tasks:**
+* Wire UART connection (TX, RX, GND)
+* Design message protocol (JSON format)
+* Implement command transmission (ESP32 → Pi)
+* Implement status feedback (Pi → ESP32)
+* Test latency and reliability
+
+**Success Criteria:**
+* UART communication stable at 115200 baud
+* Message transmission <10ms latency
+* No packet loss during normal operation
+* Error handling for communication failures
+
+---
+
+==== Phase 4: Attack Simulation (After Phase 3) ====
+
+**Objective:** Program the vulnerability demonstration
+
+**Tasks:**
+* Create "vulnerable ESP32" mode
+* Simulate open telnet port
+* Program weak credentials (admin/admin)
+* Implement command injection vulnerability
+* Create attack sequence script
+* Design visual "hacker terminal" display
+
+**Success Criteria:**
+* Attack sequence is visually clear
+* Timing is dramatic (not rushed)
+* Audience understands what's happening
+* Smooth transition to defense phase
+
+---
+
+==== Phase 5: ARGOS Defense System (After Phase 4) ====
+
+**Objective:** Implement security monitoring and threat response
+
+**Tasks:**
+* Anomaly detection algorithm
+* UART traffic pattern analysis
+* Command injection signature detection
+* Automatic threat response:
+  - Isolate ESP32
+  - Activate emergency brake
+  - Switch to safe mode
+  - Display recovery message
+* Recovery protocol implementation
+
+**Success Criteria:**
+* Defense triggers automatically
+* Car stops safely every time
+* Recovery is smooth
+* System stable after defense
+
+---
+
+==== Phase 6: Demo Integration & Polish (Final) ====
+
+**Objective:** Perfect the complete demonstration
+
+**Tasks:**
+* Integrate all systems together
+* Test complete attack → defense sequence
+* Optimize timing for presentation
+* Practice demo runs (10+ perfect executions)
+* Prepare backup plans
+* Create presentation script
+
+**Success Criteria:**
+* Demo runs smoothly 10 times in a row
+* Timing is perfect (2-3 minutes total)
+* Presenter is confident
+* Backup plan ready
+
+---
+
+===== Timeline Estimate =====
+
+**Component Delivery:** March 2026
+
+**Development Timeline:**
+* Phase 1 (Hardware Docs): ✅ Current (1 week)
+* Phase 2 (Voice System): 1-2 weeks after delivery
+* Phase 3 (UART Protocol): 1 week
+* Phase 4 (Attack Sim): 1 week
+* Phase 5 (Defense): 1 week
+* Phase 6 (Polish): 1 week
+
+**Total:** 6-8 weeks after component arrival
+
+**Target Demo Date:** Late May / Early June 2026
+
+---
+
+===== Key Design Decisions =====
+
+==== Why ESP32 for Voice? ====
+
+**Advantages:**
+* ✅ Dedicated I2S interface for microphone
+* ✅ Built-in DAC for audio output
+* ✅ Low power consumption
+* ✅ Perfect for "cheap IoT device" narrative
+* ✅ Offloads voice processing from Raspberry Pi
+
+**Alternative Considered:**
+* Bluetooth headset → Rejected (less dramatic, harder to show vulnerability)
+
+---
+
+==== Why I2S Microphone? ====
+
+**INMP441 Benefits:**
+* ✅ Digital interface (no ADC noise)
+* ✅ High quality audio capture
+* ✅ Low power consumption
+* ✅ Professional-grade component
+* ✅ Easy ESP32 integration
+
+**Alternative Considered:**
+* Analog microphone → Rejected (lower quality, more noise)
+
+---
+
+==== Why PAM8403 Amplifier? ====
+
+**PAM8403 Benefits:**
+* ✅ Class-D efficiency (low power)
+* ✅ Matches ESP32 voltage range
+* ✅ 3W output sufficient for demo
+* ✅ Small form factor
+* ✅ Cost-effective
+
+**Alternative Considered:**
+* Direct speaker connection → Rejected (ESP32 DAC too weak)
+
+---
+
+===== Integration with ARGOS Car =====
+
+==== Stage 1 Car Status ====
+
+**Current State:**
+* ✅ All motor systems functional
+* ✅ Differential drive validated
+* ✅ Ultrasonic sensor working
+* ✅ Power system stable
+* ⏳ Awaiting tire calibration (March 2026)
+
+**Stage 2 Will Add:**
+* Voice control interface
+* Attack simulation capability
+* Security demonstration
+* Enhanced presentation value
+
+**No Interference:**
+* ESP32 is separate system (voice only)
+* Raspberry Pi retains full motor control
+* Stage 2 adds functionality, doesn't modify Stage 1
+
+---
+
+===== Documentation Structure =====
+
+**Hardware Documentation:**
+* `ESP32_Technical_Reference.txt` - ESP32 specs and pinout
+* `Raspberry_Pi_Pin_Mapping.txt` - Pi pins used in project
+* `INMP441_Microphone.txt` - Microphone specifications and wiring
+* `PAM8403_Amplifier.txt` - Amplifier specifications and wiring
+* `Speaker_4ohm_3W.txt` - Speaker specifications
+
+**Development Documentation:**
+* `Stage_2-Alexa_China.txt` - This document (project overview)
+* Future checkpoints will document progress
+
+**Code Structure:**
+* `alexa-architecture/src/` - ESP32 firmware code (future)
+* Organized by functionality (voice, UART, attack simulation)
+
+---
+
+===== Success Metrics =====
+
+==== Technical Success ====
+
+**Minimum Viable Demo:**
+* ✅ ESP32 recognizes wake word + 5 basic commands
+* ✅ Voice commands control car movement
+* ✅ Attack simulation executes smoothly
+* ✅ ARGOS defense stops attack automatically
+* ✅ System runs continuously for 5-minute demo
+
+**Quality Metrics:**
+* Wake word detection: >90% accuracy
+* Command recognition: >80% accuracy (quiet room)
+* Response latency: <500ms
+* UART reliability: <1% packet loss
+* Defense trigger: 100% success rate
+
+---
+
+==== Presentation Success ====
+
+**Audience Reaction:**
+* 😮 "Oh, that's cool" (Setup phase)
+* 😨 "Oh no!" (Attack phase)
+* 😌 "Phew!" (Defense phase)
+* 🤔 "I should care about IoT security" (Takeaway)
+
+**Judges/Professors:**
+* 🎯 Clear problem statement
+* 🎯 Real-world relevance
+* 🎯 Technical competence demonstrated
+* 🎯 Practical solution proposed
+* 🎯 Well-executed presentation
+
+---
+
+===== Next Steps =====
+
+**Immediate (Current Phase):**
+* ✅ Complete hardware documentation
+* ✅ Map all pin connections
+* ✅ Plan physical assembly
+* ⏳ Wait for component delivery
+
+**After Component Arrival:**
+* Begin Phase 2: ESP32 voice system integration
+* Test microphone and speaker connections
+* Implement basic wake word detection
+* Start command recognition development
+
+---
+
+===== Project Philosophy =====
+
+**Core Principle:**
+> "Technology serves the message, not the other way around"
+
+**What ARGOS Demonstrates:**
+* Real IoT vulnerability (cheap devices)
+* Real attack vector (credential weakness + escalation)
+* Real solution (security monitoring + isolation)
+* Real impact (physical danger prevented)
+
+**This is Education:**
+* Cybersecurity made tangible
+* IoT risks demonstrated clearly
+* Defense mechanisms explained visually
+* Practical knowledge for audience
+
+---
+
+**Status:** Project initialization complete  
+**Next Update:** After hardware documentation completion  
+**Project Confidence:** HIGH ✨
+
+---
+
+**ARGOS Stage 2 is not about building a voice assistant.**  
+**ARGOS Stage 2 is about demonstrating IoT security.**
+
+🎤🛡️✨
+

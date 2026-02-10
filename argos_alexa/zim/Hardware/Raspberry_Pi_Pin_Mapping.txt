@@ -1,0 +1,435 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== Raspberry Pi Zero W - Pin Mapping for ARGOS Project ======
+Created Monday 10 February 2026
+
+===== Overview =====
+
+This document maps all GPIO pins used in the ARGOS project (Stage 1 Car + Stage 2 Alexa China). It serves as a reference for the ESP32 "Alexa China" to understand which pins are available and which are already in use.
+
+**Raspberry Pi Model:** Zero W  
+**Total GPIO Pins:** 40 physical pins  
+**GPIO Available:** 26 programmable GPIO pins  
+**Purpose:** Car control, sensor monitoring, security algorithms, UART communication with ESP32
+
+---
+
+===== Complete Pin Usage Map =====
+
+==== Motor Control (L298N) ====
+
+**Motor A Control:**
+```
+Physical Pin    GPIO    Function              Component
+├── Pin 37      GPIO 26  ENA (PWM Enable)      L298N Motor A
+├── Pin 11      GPIO 17  IN1 (Direction 1)    L298N Motor A
+└── Pin 13      GPIO 27  IN2 (Direction 2)    L298N Motor A
+```
+
+**Motor B Control:**
+```
+Physical Pin    GPIO    Function              Component
+├── Pin 38      GPIO 20  ENB (PWM Enable)      L298N Motor B
+├── Pin 15      GPIO 22  IN3 (Direction 1)    L298N Motor B
+└── Pin 16      GPIO 23  IN4 (Direction 2)    L298N Motor B
+```
+
+**Ground Connections:**
+```
+Physical Pin    Function              Component
+├── Pin 6       GND                   L298N (shared)
+└── Pin 14      GND                   L298N (shared)
+```
+
+**Notes:**
+* ENA/ENB use GPIO 26/20 (General Purpose pins, optimized for PWM)
+* IN1-IN4 control motor direction (forward/backward)
+* Multiple GND pins used for current distribution
+
+---
+
+==== Ultrasonic Sensor (HC-SR04) ====
+
+**Current Configuration:**
+```
+Physical Pin    GPIO    Function              Component
+├── Pin 18      GPIO 24  TRIG (Trigger)       HC-SR04
+├── Pin 19      GPIO 10  ECHO (Echo)           HC-SR04
+└── Pin 9       GND      Ground                HC-SR04
+```
+
+**Future Configuration (Planned):**
+```
+Physical Pin    GPIO    Function              Component
+├── Pin 35      GPIO 19  TRIG (Trigger)       HC-SR04
+├── Pin 36      GPIO 16  ECHO (Echo)           HC-SR04
+└── Pin 9       GND      Ground                HC-SR04
+```
+
+**Notes:**
+* Sensor powered by 5V powerbank (not Pi GPIO)
+* ECHO pin uses voltage divider (5V → 3.3V safe)
+* Future move to pins 35/36 frees up pins 18/19
+
+---
+
+==== LCD Display (1602 I2C) ====
+
+**I2C Interface:**
+```
+Physical Pin    GPIO    Function              Component
+├── Pin 3       GPIO 2   SDA1 (I2C Data)       LCD 1602
+├── Pin 5       GPIO 3   SCL1 (I2C Clock)      LCD 1602
+└── Pin 6       GND      Ground                LCD 1602 (shared)
+```
+
+**Power:**
+```
+LCD VCC → 4x AA Batteries (+4.8V)
+LCD GND → 4x AA Batteries (GND) + Pi Pin 6 (common GND)
+```
+
+**Notes:**
+* LCD has I2C module (only needs 2 GPIO pins)
+* Uses dedicated I2C pins (hardware pull-up resistors)
+* RGB backlight control via I2C commands
+* Power from AA batteries (shared with sensors)
+
+---
+
+==== UART Communication (ESP32 "Alexa China") ====
+
+**UART Interface:**
+```
+Physical Pin    GPIO    Function              Component
+├── Pin 8       GPIO 14  TX (Transmit)         ESP32 RX
+├── Pin 10      GPIO 15  RX (Receive)          ESP32 TX
+└── Pin 6       GND      Ground                ESP32 GND (shared)
+```
+
+**Communication Details:**
+* Baud rate: 115200 bps
+* Protocol: JSON messages
+* Direction: Bidirectional (commands and status)
+* Purpose: Voice command transmission from ESP32 to Pi
+
+**Notes:**
+* Pin 10 (GPIO 15) was previously used for ENA, moved to Pin 37
+* UART pins have hardware support (not software serial)
+* Common GND essential for reliable communication
+
+---
+
+==== Power Pins ====
+
+**5V Power Output:**
+```
+Physical Pin    Function              Usage
+├── Pin 2       5V                    Not used (reserved)
+└── Pin 4       5V                    Not used (reserved)
+```
+
+**3.3V Power Output:**
+```
+Physical Pin    Function              Usage
+├── Pin 1       3.3V                  Not used (reserved)
+└── Pin 17      3.3V                  Not used (reserved)
+```
+
+**Ground Pins:**
+```
+Physical Pin    Function              Usage
+├── Pin 6       GND                    L298N, LCD, ESP32 (shared)
+├── Pin 9       GND                    HC-SR04 sensor
+├── Pin 14      GND                    L298N (shared)
+├── Pin 20      GND                    Available
+├── Pin 25      GND                    Available
+├── Pin 30      GND                    Available
+├── Pin 34      GND                    Available
+└── Pin 39      GND                    Available
+```
+
+**Notes:**
+* Multiple GND pins used for current distribution
+* All GND pins are internally connected (same ground plane)
+* Shared GND essential for all components
+
+---
+
+===== Pin Usage Summary =====
+
+==== Pins Currently Used ====
+
+**GPIO Pins in Use:**
+```
+GPIO 2   → SDA1 (LCD I2C)
+GPIO 3   → SCL1 (LCD I2C)
+GPIO 10  → ECHO (HC-SR04) - Future: GPIO 16
+GPIO 14  → TX (UART to ESP32)
+GPIO 15  → RX (UART from ESP32)
+GPIO 17  → IN1 (Motor A)
+GPIO 20  → ENB (Motor B PWM)
+GPIO 22  → IN3 (Motor B)
+GPIO 23  → IN4 (Motor B)
+GPIO 24  → TRIG (HC-SR04) - Future: GPIO 19
+GPIO 26  → ENA (Motor A PWM)
+GPIO 27  → IN2 (Motor A)
+```
+
+**Total GPIO Used:** 12 pins  
+**Total GPIO Available:** 14 pins (out of 26 programmable)
+
+---
+
+==== Available GPIO Pins ====
+
+**Unused GPIO Pins (Available for Future Use):**
+```
+GPIO 4   → Available
+GPIO 5   → Available
+GPIO 6   → Available
+GPIO 7   → Available
+GPIO 8   → Available
+GPIO 9   → Available (ECHO future move)
+GPIO 11  → Available
+GPIO 12  → Available
+GPIO 13  → Available
+GPIO 18  → Available (TRIG future move)
+GPIO 19  → Reserved for HC-SR04 TRIG (future)
+GPIO 21  → Available
+GPIO 25  → Available
+GPIO 28  → Available (GPIO 0)
+GPIO 29  → Available (GPIO 1)
+```
+
+**Special Function Pins (Use with Caution):**
+```
+GPIO 0   → ID_SD (I2C EEPROM)
+GPIO 1   → ID_SC (I2C EEPROM)
+GPIO 7   → CE1 (SPI)
+GPIO 8   → CE0 (SPI)
+GPIO 9   → MISO (SPI)
+GPIO 10  → MOSI (SPI) - Currently used for ECHO
+GPIO 11  → SCLK (SPI)
+GPIO 14  → TX (UART) - Used for ESP32
+GPIO 15  → RX (UART) - Used for ESP32
+```
+
+---
+
+===== Pin Conflict Analysis =====
+
+==== Current Conflicts ====
+
+**No Major Conflicts:**
+* ✅ Motor control pins are General Purpose (no special functions)
+* ✅ I2C pins dedicated to LCD (standard usage)
+* ✅ UART pins dedicated to ESP32 (standard usage)
+* ✅ Sensor pins can be moved if needed (future plan)
+
+**Minor Considerations:**
+* ⚠️ GPIO 10 (ECHO) is on SPI MOSI pin - works but not ideal
+* ⚠️ GPIO 24 (TRIG) is General Purpose - no issues
+* ✅ Future move to GPIO 19/16 will use cleaner pins
+
+---
+
+===== Power Distribution =====
+
+==== Power Sources ====
+
+**Source 1: 12V Battery (Motors)**
+```
+12V Battery
+├── +12V → L298N "+12V" pin
+└── GND  → L298N "GND" + Pi Pin 6/14 (common GND)
+```
+
+**Source 2: 5V Powerbank (Raspberry Pi + Sensor)**
+```
+5V Powerbank
+├── +5V  → Raspberry Pi micro-USB
+├── +5V  → HC-SR04 VCC
+└── GND  → HC-SR04 GND + Pi Pin 9 (common GND)
+```
+
+**Source 3: 4x AA Batteries (Sensors + LCD + ESP32)**
+```
+4x AA Batteries (4.8V)
+├── +4.8V → ESP32 VIN
+├── +4.8V → LCD VCC
+└── GND   → ESP32 GND + LCD GND + Pi Pin 6 (common GND)
+```
+
+**Common Ground:**
+* All three power systems share GND reference
+* Connected via Raspberry Pi GND pins (6, 9, 14)
+* Essential for reliable communication and sensor operation
+
+---
+
+===== Communication Interfaces =====
+
+==== I2C Bus ====
+
+**Devices on I2C:**
+* LCD 1602 (I2C address: 0x27 or 0x3F)
+
+**I2C Pins:**
+* SDA: Pin 3 (GPIO 2)
+* SCL: Pin 5 (GPIO 3)
+
+**Future I2C Devices:**
+* Can add more I2C devices (different addresses)
+* I2C supports multiple devices on same bus
+
+---
+
+==== UART Interface ====
+
+**Devices on UART:**
+* ESP32 "Alexa China" (bidirectional)
+
+**UART Pins:**
+* TX: Pin 8 (GPIO 14)
+* RX: Pin 10 (GPIO 15)
+
+**UART Configuration:**
+* Baud: 115200
+* Format: 8N1
+* Protocol: JSON messages
+
+---
+
+===== Pin Selection Rationale =====
+
+==== Why These Specific Pins? ====
+
+**Motor Control (GPIO 26/20):**
+* ✅ General Purpose pins (no special functions)
+* ✅ Good PWM signal quality
+* ✅ Avoids conflicts with SPI/I2C/UART
+
+**I2C LCD (GPIO 2/3):**
+* ✅ Dedicated I2C pins (hardware pull-up resistors)
+* ✅ Standard I2C interface
+* ✅ No software configuration needed
+
+**UART ESP32 (GPIO 14/15):**
+* ✅ Dedicated UART pins (hardware support)
+* ✅ Reliable communication
+* ✅ Standard serial interface
+
+**Sensor (GPIO 19/16 future):**
+* ✅ General Purpose pins
+* ✅ Clean signal paths
+* ✅ No special function conflicts
+
+---
+
+===== ESP32 Integration Notes =====
+
+==== Information for ESP32 "Alexa China" ====
+
+**UART Connection:**
+* ESP32 TX (GPIO 17) → Pi RX (Pin 10, GPIO 15)
+* ESP32 RX (GPIO 16) → Pi TX (Pin 8, GPIO 14)
+* Common GND required
+
+**Available Pins for Future Expansion:**
+* 14 GPIO pins available
+* Can add more sensors or peripherals if needed
+
+**Power Considerations:**
+* Pi powered by 5V powerbank
+* ESP32 powered by 4x AA batteries
+* Common GND essential for UART communication
+
+**Communication Protocol:**
+* JSON messages via UART
+* 115200 baud rate
+* Bidirectional (commands and status)
+
+---
+
+===== Troubleshooting Guide =====
+
+==== Common Pin Issues ====
+
+**Problem: Motor not responding**
+* Check: ENA/ENB pins (GPIO 26/20) configured correctly
+* Check: IN1-IN4 pins (GPIO 17/27/22/23) logic levels
+* Check: GND connections (Pins 6, 14)
+
+**Problem: LCD not displaying**
+* Check: I2C pins (GPIO 2/3) connected correctly
+* Check: I2C address (0x27 or 0x3F)
+* Check: Power supply (4.8V from AA batteries)
+
+**Problem: UART communication fails**
+* Check: TX/RX not swapped
+* Check: Common GND connection
+* Check: Baud rate matches (115200)
+* Check: Pins 8 and 10 (GPIO 14/15)
+
+**Problem: Sensor readings erratic**
+* Check: TRIG/ECHO pins (GPIO 24/10)
+* Check: Voltage divider on ECHO pin
+* Check: GND connection (Pin 9)
+
+---
+
+===== Pin Reference Table =====
+
+**Quick Reference:**
+```
+Pin  | GPIO | Function           | Component
+-----|------|--------------------|------------------
+3    | 2    | SDA1 (I2C)         | LCD 1602
+5    | 3    | SCL1 (I2C)         | LCD 1602
+6    | GND  | Ground             | Shared (L298N, LCD, ESP32)
+8    | 14   | TX (UART)          | ESP32 RX
+9    | GND  | Ground             | HC-SR04
+10   | 15   | RX (UART)          | ESP32 TX
+11   | 17   | IN1                | Motor A
+13   | 27   | IN2                | Motor A
+14   | GND  | Ground             | L298N
+15   | 22   | IN3                | Motor B
+16   | 23   | IN4                | Motor B
+18   | 24   | TRIG               | HC-SR04 (future: Pin 35)
+19   | 10   | ECHO               | HC-SR04 (future: Pin 36)
+35   | 19   | TRIG (future)      | HC-SR04
+36   | 16   | ECHO (future)      | HC-SR04
+37   | 26   | ENA (PWM)          | Motor A
+38   | 20   | ENB (PWM)          | Motor B
+```
+
+---
+
+===== References =====
+
+**Raspberry Pi Documentation:**
+* Raspberry Pi Zero W Pinout: https://pinout.xyz/
+* GPIO Pin Functions Reference
+
+**Project Documentation:**
+* `Stage_2-Alexa_China.txt` - Project overview
+* `ESP32_Technical_Reference.txt` - ESP32 pin mapping
+* `Checkpoint_2.txt` - Car system status
+
+---
+
+**Documented By:** AI Assistant  
+**Date:** February 10, 2026  
+**Status:** Complete pin mapping for ARGOS project  
+**Next Update:** After hardware modifications
+
+---
+
+**Raspberry Pi is the brain.**  
+**Every pin tells a story.**
+
+🧠✨
+

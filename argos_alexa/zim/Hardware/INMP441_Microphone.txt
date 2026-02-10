@@ -1,0 +1,354 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== INMP441 Microphone Module ======
+Created Monday 10 February 2026
+
+===== Overview =====
+
+The INMP441 is a high-performance, low-power digital MEMS microphone with I2S interface. It provides professional-quality audio capture for the ESP32 "Alexa China" voice recognition system.
+
+**Role in Project:** Voice input for wake word detection and command recognition  
+**Interface:** I2S (Inter-IC Sound) digital interface  
+**Connection:** ESP32 I2S pins  
+**Power:** 3.3V from ESP32
+
+---
+
+===== Technical Specifications =====
+
+==== General Characteristics ====
+
+* **Type:** Digital MEMS (Micro-Electro-Mechanical System) microphone
+* **Interface:** I2S (3-wire: WS, SCK, SD)
+* **Directionality:** Omnidirectional
+* **Frequency Response:** 60 Hz - 15 kHz
+* **Sensitivity:** -26 dBFS (typical)
+* **Signal-to-Noise Ratio (SNR):** 61 dB (A-weighted)
+* **Total Harmonic Distortion (THD):** 1% (at 94 dB SPL)
+
+==== Electrical Specifications ====
+
+* **Operating Voltage:** 1.5V - 3.6V (3.3V typical)
+* **Current Consumption:**
+  - Active mode: 1.2 mA (typical)
+  - Standby mode: 0.1 mA (typical)
+* **Power Supply Rejection Ratio (PSRR):** -70 dB
+* **Digital Output:** I2S format, 24-bit data (left-justified)
+
+==== Physical Specifications ====
+
+* **Package:** LGA (Land Grid Array) package
+* **Dimensions:** 3.76 mm × 4.72 mm × 1.00 mm
+* **Weight:** < 0.1 grams
+* **Operating Temperature:** -40°C to +85°C
+* **Storage Temperature:** -40°C to +90°C
+
+---
+
+===== Pin Configuration =====
+
+==== INMP441 Module Pinout ====
+
+**Typical Module Layout:**
+```
+INMP441 Module
+├── VDD  → Power supply (3.3V)
+├── GND  → Ground
+├── WS   → Word Select (LRCLK - Left/Right Clock)
+├── SCK  → Serial Clock (BCLK - Bit Clock)
+└── SD   → Serial Data (DOUT - Data Output)
+```
+
+**Pin Functions:**
+* **VDD:** Power supply input (1.5V - 3.6V, typically 3.3V)
+* **GND:** Ground reference
+* **WS (Word Select):** Frame synchronization signal (LRCLK)
+  - HIGH = Left channel
+  - LOW = Right channel
+  - For mono: toggles at sample rate
+* **SCK (Serial Clock):** Bit clock signal (BCLK)
+  - Determines data transfer rate
+  - Frequency = Sample rate × Bits per sample × Channels
+* **SD (Serial Data):** Digital audio data output (DOUT)
+  - 24-bit audio samples
+  - Left-justified format
+  - MSB first
+
+---
+
+===== Connection to ESP32 =====
+
+==== Wiring Diagram ====
+
+**Power Connections:**
+```
+INMP441 Module    →    ESP32
+├── VDD          →    3.3V pin
+└── GND          →    GND pin
+```
+
+**I2S Signal Connections:**
+```
+INMP441 Module    →    ESP32 GPIO    →    I2S Function
+├── WS           →    GPIO 15       →    Word Select (LRCLK)
+├── SCK          →    GPIO 14       →    Serial Clock (BCLK)
+└── SD           →    GPIO 13       →    Serial Data (DOUT)
+```
+
+**Complete Connection:**
+```
+INMP441 VDD  → ESP32 3.3V
+INMP441 GND  → ESP32 GND
+INMP441 WS   → ESP32 GPIO 15
+INMP441 SCK  → ESP32 GPIO 14
+INMP441 SD   → ESP32 GPIO 13
+```
+
+---
+
+===== I2S Interface Details =====
+
+==== I2S Protocol ====
+
+**I2S (Inter-IC Sound) is a serial bus interface standard for digital audio.**
+
+**Signal Description:**
+* **WS (Word Select):** Frame synchronization
+  - Defines left/right channel
+  - Toggles at sample rate frequency
+  - For mono: still toggles (use one channel)
+* **SCK (Serial Clock):** Bit clock
+  - Synchronizes data transfer
+  - Frequency = Sample rate × Bits × Channels
+  - Example: 16 kHz × 24 bits × 2 channels = 768 kHz
+* **SD (Serial Data):** Audio data stream
+  - 24-bit samples (left-justified)
+  - MSB first
+  - Continuous data stream
+
+**Timing Example (16 kHz, 24-bit, mono):**
+* Sample rate: 16,000 samples/second
+* Bits per sample: 24
+* Channels: 1 (mono, but I2S uses 2 slots)
+* SCK frequency: 16,000 × 24 × 2 = 768,000 Hz (768 kHz)
+* WS frequency: 16,000 Hz (matches sample rate)
+
+---
+
+===== Configuration Parameters =====
+
+==== Recommended Settings for Voice Recognition ====
+
+**Sample Rate:**
+* **16 kHz** (recommended for voice)
+  - Sufficient for human speech (300 Hz - 3.4 kHz)
+  - Lower data rate (less processing)
+  - Standard for voice recognition systems
+
+**Bit Depth:**
+* **16-bit** (sufficient for voice)
+  - INMP441 outputs 24-bit, but 16-bit is enough
+  - Reduces data processing requirements
+  - Standard for voice applications
+
+**Channels:**
+* **Mono (1 channel)**
+  - Voice recognition doesn't need stereo
+  - Reduces data by 50%
+  - Simpler processing
+
+**Data Format:**
+* **Left-justified** (INMP441 default)
+* **MSB first** (standard I2S)
+
+---
+
+===== Power Considerations =====
+
+==== Current Consumption ====
+
+**Active Mode:**
+* Typical: 1.2 mA
+* Maximum: 1.5 mA
+
+**Standby Mode:**
+* Typical: 0.1 mA
+* Maximum: 0.2 mA
+
+**Power Supply:**
+* ESP32 3.3V output: Sufficient (can supply 600 mA)
+* INMP441 needs: 1.2 mA
+* **Safety margin: 500x** ✅
+
+**Power Management:**
+* Can be put in standby when not listening
+* Wake word detection can trigger active mode
+* Saves power during idle periods
+
+---
+
+===== Audio Quality Characteristics =====
+
+==== Frequency Response ====
+
+**Range:** 60 Hz - 15 kHz
+
+**Voice Frequency Range:**
+* Human speech: 300 Hz - 3.4 kHz
+* INMP441 covers: 60 Hz - 15 kHz
+* **Coverage: Excellent** ✅
+
+**Response Curve:**
+* Relatively flat from 100 Hz to 10 kHz
+* Roll-off below 100 Hz (removes low-frequency noise)
+* Roll-off above 10 kHz (reduces high-frequency noise)
+
+---
+
+==== Sensitivity and SNR ====
+
+**Sensitivity:**
+* -26 dBFS (typical)
+* Good sensitivity for voice capture
+* Works well at normal speaking distances (30-100 cm)
+
+**Signal-to-Noise Ratio:**
+* 61 dB (A-weighted)
+* Excellent for voice recognition
+* Reduces false triggers from background noise
+
+**Dynamic Range:**
+* ~94 dB SPL maximum
+* Sufficient for normal indoor environments
+* Handles loud voices without clipping
+
+---
+
+===== Physical Mounting =====
+
+==== Module Placement ====
+
+**Considerations:**
+* **Direction:** Omnidirectional (captures from all directions)
+* **Distance:** Optimal 30-100 cm from speaker
+* **Orientation:** Module can be mounted in any orientation
+* **Isolation:** Mount away from vibration sources (motors, speakers)
+
+**Mounting Options:**
+* **PCB mount:** Solder directly to custom PCB
+* **Module mount:** Use breakout board with headers
+* **Enclosure:** Protect from physical damage
+* **Vibration isolation:** Use rubber grommets if near motors
+
+**For ARGOS Car:**
+* Mount on ESP32 "Alexa China" module
+* Position for clear voice capture
+* Isolate from car motor vibrations
+* Accessible for user voice commands
+
+---
+
+===== Troubleshooting Guide =====
+
+==== Common Issues ====
+
+**Problem: No audio data received**
+* Check: I2S pin connections (WS, SCK, SD)
+* Check: Power supply (3.3V on VDD)
+* Check: GND connection
+* Check: I2S configuration in ESP32 code
+* Check: Sample rate matches INMP441 capability
+
+**Problem: Distorted audio**
+* Check: Power supply voltage (should be 3.3V stable)
+* Check: Sample rate configuration
+* Check: Bit depth settings
+* Check: I2S timing (clock frequency)
+
+**Problem: Low sensitivity**
+* Check: Microphone orientation
+* Check: Distance from sound source
+* Check: Background noise levels
+* Check: I2S gain settings (if available)
+
+**Problem: High noise level**
+* Check: Power supply quality (clean 3.3V)
+* Check: GND connection (common ground with ESP32)
+* Check: Cable length (keep I2S wires short)
+* Check: Electromagnetic interference (away from motors)
+
+---
+
+===== Integration Notes =====
+
+==== ESP32 I2S Configuration ====
+
+**Required Settings:**
+* I2S mode: I2S_MODE_MASTER | I2S_MODE_RX
+* Sample rate: 16000 Hz
+* Bit depth: 16-bit or 24-bit
+* Channels: 1 (mono)
+* Format: I2S_STANDARD (left-justified)
+
+**Pin Assignment:**
+* WS: GPIO 15
+* SCK: GPIO 14
+* SD: GPIO 13
+
+**Buffer Configuration:**
+* DMA buffer size: 1024-4096 bytes
+* Number of buffers: 2-4
+* For voice: Smaller buffers = lower latency
+
+---
+
+===== Performance Expectations ====
+
+**Voice Recognition:**
+* **Wake word detection:** >90% accuracy (quiet room)
+* **Command recognition:** >80% accuracy (quiet room)
+* **Response time:** <100 ms (buffer processing)
+
+**Environmental Factors:**
+* **Quiet room:** Excellent performance
+* **Normal room:** Good performance
+* **Noisy environment:** Reduced accuracy
+* **Distance:** Optimal 30-100 cm
+
+**Limitations:**
+* Not designed for far-field (beyond 2 meters)
+* Background noise affects accuracy
+* Motor noise may interfere (isolate microphone)
+
+---
+
+===== References =====
+
+**Datasheet:**
+* INMP441 Datasheet (InvenSense/TDK)
+* I2S Interface Specification
+
+**ESP32 Documentation:**
+* ESP32 I2S API Reference
+* ESP32 Audio Processing Examples
+
+**Project Documentation:**
+* `ESP32_Technical_Reference.txt` - ESP32 pin mapping
+* `Stage_2-Alexa_China.txt` - Project overview
+
+---
+
+**Documented By:** AI Assistant  
+**Date:** February 10, 2026  
+**Status:** Hardware documentation complete  
+**Next Update:** After integration testing
+
+---
+
+**INMP441 is not just a microphone.**  
+**INMP441 is the ears of ARGOS.**
+
+🎤👂✨
+

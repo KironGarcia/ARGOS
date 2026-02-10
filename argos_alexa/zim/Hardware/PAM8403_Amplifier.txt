@@ -1,0 +1,428 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== PAM8403 Audio Amplifier Module ======
+Created Monday 10 February 2026
+
+===== Overview =====
+
+The PAM8403 is a Class-D stereo audio amplifier module that amplifies the weak DAC output from ESP32 to drive a speaker. It provides clear, efficient audio output for the "Alexa China" voice responses.
+
+**Role in Project:** Amplify ESP32 DAC signal to drive 4Ω 3W speaker  
+**Type:** Class-D amplifier (high efficiency)  
+**Connection:** ESP32 DAC output → PAM8403 → Speaker  
+**Power:** 3.3V or 5V (depending on module version)
+
+---
+
+===== Technical Specifications =====
+
+==== General Characteristics ====
+
+* **Type:** Class-D stereo audio amplifier
+* **Output Power:**
+  - 3W per channel @ 4Ω load, 5V supply
+  - 2W per channel @ 4Ω load, 3.3V supply
+* **Efficiency:** 90% (typical) - very efficient
+* **Total Harmonic Distortion (THD):** <1% @ 1W output
+* **Signal-to-Noise Ratio (SNR):** >70 dB
+
+==== Electrical Specifications ====
+
+* **Operating Voltage:** 2.5V - 5.5V
+* **Recommended Voltage:** 5V (for maximum power)
+* **Current Consumption:**
+  - Idle: 5-10 mA
+  - 1W output: ~200 mA
+  - 3W output: ~300-400 mA (peak)
+* **Input Impedance:** 20 kΩ (typical)
+* **Output Impedance:** Matched to speaker (4Ω or 8Ω)
+
+==== Physical Specifications ====
+
+* **Module Size:** ~20 mm × 15 mm (typical breakout board)
+* **Package:** SMD (Surface Mount Device) on breakout board
+* **Operating Temperature:** -40°C to +85°C
+* **Storage Temperature:** -40°C to +150°C
+
+---
+
+===== Pin Configuration =====
+
+==== PAM8403 Module Pinout ====
+
+**Typical Module Layout:**
+```
+PAM8403 Module
+├── VDD  → Power supply (2.5V - 5.5V)
+├── GND  → Ground
+├── IN+  → Audio input (positive)
+├── IN-  → Audio input (negative/GND)
+├── OUT+ → Speaker output (positive)
+├── OUT- → Speaker output (negative)
+└── SD   → Shutdown control (optional)
+```
+
+**Pin Functions:**
+* **VDD:** Power supply input (2.5V - 5.5V)
+  - 5V recommended for maximum power
+  - 3.3V works but lower output
+* **GND:** Ground reference
+* **IN+:** Audio input signal (positive)
+  - Connects to ESP32 DAC output
+  - AC-coupled (capacitor recommended)
+* **IN-:** Audio input signal (negative)
+  - Can connect to GND (single-ended)
+  - Or use differential input
+* **OUT+:** Speaker output (positive terminal)
+* **OUT-:** Speaker output (negative terminal)
+* **SD (Shutdown):** Enable/disable control
+  - HIGH = amplifier enabled
+  - LOW = amplifier disabled (low power)
+  - Can be left floating (always enabled)
+
+---
+
+===== Connection to ESP32 =====
+
+==== Wiring Diagram ====
+
+**Power Connections:**
+```
+PAM8403 Module    →    Power Source
+├── VDD          →    5V or 3.3V (check module)
+└── GND          →    ESP32 GND (common ground)
+```
+
+**Audio Input Connections:**
+```
+ESP32             →    PAM8403 Module
+├── GPIO 25      →    IN+ (DAC1 output)
+└── GND          →    IN- (or connect to GND)
+```
+
+**Audio Output Connections:**
+```
+PAM8403 Module    →    Speaker
+├── OUT+         →    Speaker positive terminal
+└── OUT-         →    Speaker negative terminal
+```
+
+**Complete Connection:**
+```
+ESP32 GPIO 25 (DAC1) → PAM8403 IN+
+ESP32 GND            → PAM8403 IN- (and GND)
+PAM8403 VDD          → 5V or 3.3V (module dependent)
+PAM8403 GND          → ESP32 GND
+PAM8403 OUT+         → Speaker +
+PAM8403 OUT-         → Speaker -
+```
+
+---
+
+===== Power Supply Considerations =====
+
+==== Voltage Selection ====
+
+**5V Power Supply:**
+* **Advantages:**
+  - Maximum output power (3W)
+  - Better audio quality at high volume
+  - More headroom for peaks
+* **Disadvantages:**
+  - Requires 5V source (ESP32 VIN is 4.8V)
+  - May need separate 5V regulator
+
+**3.3V Power Supply:**
+* **Advantages:**
+  - Can use ESP32 3.3V output
+  - Simpler wiring
+  - Lower power consumption
+* **Disadvantages:**
+  - Lower output power (~2W)
+  - Less headroom for loud audio
+
+**Recommendation:**
+* Use 5V if available (better performance)
+* Use 3.3V if simplicity is priority
+* Check module specifications (some modules require 5V)
+
+---
+
+===== Audio Signal Path =====
+
+==== Signal Flow ====
+
+**ESP32 DAC → PAM8403 → Speaker**
+
+**Step 1: ESP32 DAC Output**
+* GPIO 25 (DAC1) outputs analog voltage
+* Range: 0V - 3.3V
+* Resolution: 8-bit (256 levels)
+* Sample rate: 8-16 kHz (for TTS)
+
+**Step 2: PAM8403 Amplification**
+* Input: 0-3.3V analog signal
+* Amplification: ~10-20x (gain depends on module)
+* Output: 0-5V (or 0-3.3V) PWM signal
+* Class-D modulation (efficient switching)
+
+**Step 3: Speaker Output**
+* PWM signal filtered by speaker inductance
+* Converts to analog audio waves
+* 4Ω impedance matches amplifier
+* 3W power output
+
+---
+
+===== Class-D Amplifier Operation =====
+
+==== How Class-D Works ====
+
+**Class-D amplifiers use PWM (Pulse Width Modulation) to amplify audio efficiently.**
+
+**Process:**
+1. **Input:** Analog audio signal (0-3.3V)
+2. **Modulation:** Convert to PWM signal (high frequency switching)
+3. **Amplification:** Switch power transistors ON/OFF
+4. **Filtering:** Speaker inductance filters PWM to analog
+5. **Output:** Clean audio waves to speaker
+
+**Advantages:**
+* ✅ High efficiency (90% vs 50% for Class-AB)
+* ✅ Low heat generation
+* ✅ Small size
+* ✅ Low power consumption
+
+**For ARGOS:**
+* Perfect for battery-powered system
+* Low heat = safe in car enclosure
+* Efficient = longer battery life
+
+---
+
+===== Gain and Volume Control =====
+
+==== Amplifier Gain ====
+
+**Fixed Gain Modules:**
+* Most PAM8403 modules have fixed gain
+* Typical gain: 20-30 dB (10-30x amplification)
+* No external gain control needed
+
+**Variable Gain Modules:**
+* Some modules have gain control pin
+* Can adjust volume via GPIO
+* Not common on basic modules
+
+**Volume Control Options:**
+* **Software:** Adjust ESP32 DAC output level
+* **Hardware:** Potentiometer on input (if needed)
+* **Module:** Some modules have volume control
+
+**For ARGOS:**
+* Software volume control recommended
+* Adjust DAC output level in code
+* Simpler than hardware potentiometer
+
+---
+
+===== Speaker Matching =====
+
+==== Impedance Matching ====
+
+**PAM8403 Output:**
+* Designed for 4Ω or 8Ω speakers
+* 4Ω = more power, more current
+* 8Ω = less power, less current
+
+**Speaker Selection:**
+* **4Ω 3W speaker:** Perfect match ✅
+* Maximum power transfer
+* Optimal efficiency
+
+**Power Output:**
+* 4Ω load @ 5V: ~3W per channel
+* 4Ω load @ 3.3V: ~2W per channel
+* Sufficient for voice responses
+
+---
+
+===== Current Consumption ====
+
+==== Power Draw Analysis ====
+
+**Idle State:**
+* Amplifier enabled, no audio: 5-10 mA
+* Very low power consumption
+
+**Voice Output:**
+* Typical TTS audio: 50-150 mA
+* Depends on volume level
+
+**Peak Output:**
+* Maximum volume, 3W output: 300-400 mA
+* Short duration (peaks)
+
+**Battery Impact:**
+* 4x AA batteries: 2500 mAh
+* Idle: Negligible impact
+* Voice: ~100 mA average
+* **Battery life: 20+ hours** (voice only)
+
+---
+
+===== Physical Mounting =====
+
+==== Module Placement ====
+
+**Considerations:**
+* **Heat:** Class-D generates minimal heat (efficient)
+* **Vibration:** Secure mounting (away from motors)
+* **Wiring:** Keep audio wires short
+* **Isolation:** Separate from digital circuits
+
+**Mounting Options:**
+* **PCB mount:** Solder to custom PCB
+* **Module mount:** Use breakout board
+* **Enclosure:** Protect from physical damage
+* **Vibration isolation:** Rubber grommets if needed
+
+**For ARGOS Car:**
+* Mount on ESP32 "Alexa China" module
+* Close to speaker (short wires)
+* Isolate from motor vibrations
+* Accessible for maintenance
+
+---
+
+===== Audio Quality Considerations ====
+
+==== Signal Quality ====
+
+**Input Signal:**
+* ESP32 DAC: 8-bit resolution
+* Sufficient for voice (not music)
+* Sample rate: 8-16 kHz (voice range)
+
+**Amplification:**
+* PAM8403: Low distortion (<1%)
+* Good SNR (>70 dB)
+* Clean amplification
+
+**Output Quality:**
+* Suitable for voice responses
+* Clear and intelligible
+* Not audiophile quality (but sufficient)
+
+**For ARGOS:**
+* Voice clarity is priority
+* TTS responses need to be understood
+* Background music not required
+
+---
+
+===== Troubleshooting Guide =====
+
+==== Common Issues ====
+
+**Problem: No audio output**
+* Check: Power supply (VDD connected)
+* Check: GND connection (common ground)
+* Check: Input signal (ESP32 DAC output)
+* Check: Speaker connection (OUT+ and OUT-)
+* Check: Speaker impedance (should be 4Ω or 8Ω)
+
+**Problem: Distorted audio**
+* Check: Power supply voltage (should be stable)
+* Check: Input signal level (may be too high)
+* Check: Speaker impedance (mismatch)
+* Check: Power supply current capacity
+
+**Problem: Low volume**
+* Check: Power supply voltage (5V better than 3.3V)
+* Check: Input signal level (DAC output)
+* Check: Speaker impedance (4Ω better than 8Ω)
+* Check: Gain settings (if module has gain control)
+
+**Problem: Buzzing/humming**
+* Check: GND connection (common ground essential)
+* Check: Power supply quality (clean voltage)
+* Check: Cable routing (away from digital signals)
+* Check: Electromagnetic interference (motors, WiFi)
+
+---
+
+===== Integration Notes =====
+
+==== ESP32 DAC Configuration ====
+
+**Required Settings:**
+* DAC channel: DAC1 (GPIO 25)
+* Resolution: 8-bit (256 levels)
+* Sample rate: 8-16 kHz (for TTS)
+* Output voltage: 0-3.3V
+
+**Signal Conditioning:**
+* AC coupling capacitor recommended (10-100 µF)
+* Blocks DC offset
+* Improves audio quality
+* Optional but recommended
+
+**Volume Control:**
+* Software: Adjust DAC output level
+* Range: 0-255 (8-bit)
+* Typical: 128-200 for normal volume
+
+---
+
+===== Performance Expectations ====
+
+**Audio Output:**
+* **Volume:** Sufficient for 1-2 meter distance
+* **Clarity:** Clear voice responses
+* **Frequency Response:** 300 Hz - 3.4 kHz (voice range)
+* **Distortion:** <1% (inaudible)
+
+**Power Efficiency:**
+* **Idle:** 5-10 mA (negligible)
+* **Active:** 100-150 mA (voice output)
+* **Peak:** 300-400 mA (maximum volume)
+
+**Battery Life:**
+* 4x AA batteries: 2500 mAh
+* Continuous voice: ~20 hours
+* Typical use: Days of operation
+
+---
+
+===== References =====
+
+**Datasheet:**
+* PAM8403 Datasheet (Diodes Incorporated)
+* Class-D Amplifier Application Notes
+
+**ESP32 Documentation:**
+* ESP32 DAC API Reference
+* ESP32 Audio Output Examples
+
+**Project Documentation:**
+* `ESP32_Technical_Reference.txt` - ESP32 pin mapping
+* `Speaker_4ohm_3W.txt` - Speaker specifications
+* `Stage_2-Alexa_China.txt` - Project overview
+
+---
+
+**Documented By:** AI Assistant  
+**Date:** February 10, 2026  
+**Status:** Hardware documentation complete  
+**Next Update:** After integration testing
+
+---
+
+**PAM8403 is not just an amplifier.**  
+**PAM8403 is the voice of ARGOS.**
+
+🔊✨
+

@@ -1,0 +1,55 @@
+// LEDs do Speaker Inteligente "Alexa China"
+// LED Amarelo (Normal) - GPIO 5
+// LED Vermelho (Ataque) - GPIO 18
+
+#define LED_AMARELO 5
+#define LED_VERMELHO 18
+
+void setup() {
+  pinMode(LED_AMARELO, OUTPUT);
+  pinMode(LED_VERMELHO, OUTPUT);
+}
+
+void fadeLED(int pin, int start, int end, int durationMs) {
+  int steps = abs(end - start);
+  int delayTime = durationMs / steps;
+  
+  if (start < end) {
+    // Fade crescente (subida)
+    for(int i = start; i <= end; i++) {
+      analogWrite(pin, i);
+      delay(delayTime);
+    }
+  } else {
+    // Fade decrescente (descida)
+    for(int i = start; i >= end; i--) {
+      analogWrite(pin, i);
+      delay(delayTime);
+    }
+  }
+}
+
+void loop() {
+  // ===== LED AMARELO =====
+  // Fade crescente: 0 a 100% em 3 segundos
+  fadeLED(LED_AMARELO, 0, 255, 3000);
+  
+  // Fade decrescente: 100% a 0 em 3 segundos
+  fadeLED(LED_AMARELO, 255, 0, 3000);
+  
+  // Pequena pausa antes do próximo LED
+  delay(500);
+  
+  // ===== LED VERMELHO =====
+  // Fade crescente: 0 a 100% em 3 segundos
+  fadeLED(LED_VERMELHO, 0, 255, 3000);
+  
+  // Fade decrescente: 100% a 0 em 3 segundos
+  fadeLED(LED_VERMELHO, 255, 0, 3000);
+  
+  // Pausa antes de repetir
+  delay(500);
+  
+  // Repetir loop
+}
+

@@ -1,0 +1,412 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== ESP32 Technical Reference - Alexa China Project ======
+Created Monday 10 February 2026
+
+===== Overview =====
+
+The ESP32 serves as the "Alexa China" voice interface device in the ARGOS Stage 2 project. It handles voice recognition, command processing, and audio output, while communicating with the Raspberry Pi via UART for car control commands.
+
+**Role in Project:** Vulnerable IoT voice assistant device  
+**Primary Functions:** Wake word detection, command recognition, Text-to-Speech output  
+**Communication:** UART serial link to Raspberry Pi  
+**Power Source:** 4x AA batteries (4.8V via VIN pin)
+
+---
+
+===== Technical Specifications =====
+
+==== Processor ====
+* **CPU**: Xtensa dual-core 32-bit LX6 microprocessor
+* **Clock speed**: Up to 240 MHz (adjustable)
+* **Architecture**: Harvard architecture
+* **SRAM**: 520 KB (internal)
+* **ROM**: 448 KB (boot and core functions)
+* **Flash**: 4 MB typical (external SPI flash)
+
+==== Wireless Connectivity ====
+* **WiFi**: 802.11 b/g/n (2.4 GHz) - For attack simulation
+* **Bluetooth**: v4.2 BR/EDR and BLE - Not used in this project
+* **Range**: 100-150 meters (open air)
+
+==== Power Specifications ====
+* **Operating voltage**: 3.0V to 3.6V (3.3V typical)
+* **Input voltage**: 4.8V via VIN pin (from 4x AA batteries)
+* **Onboard regulator**: 5V → 3.3V conversion
+* **Current consumption**:
+  - Active (voice processing): 100-150 mA
+  - Active (WiFi enabled): 160-260 mA
+  - Sleep mode: 20-30 mA
+* **Power source**: 4x AA rechargeable batteries (1.2V each = 4.8V total)
+* **Expected runtime**: 6-8 hours continuous operation (2500mAh batteries)
+
+==== Audio Capabilities ====
+* **I2S interfaces**: 2 (for digital microphone input)
+* **DAC channels**: 2 (GPIO 25, GPIO 26) - for audio output
+* **DAC resolution**: 8-bit
+* **I2S sample rate**: Up to 48 kHz
+* **Perfect for**: Voice recognition and audio playback
+
+---
+
+===== Pinout Mapping for Alexa China Project =====
+
+==== Power Connections ====
+
+**VIN (Voltage Input):**
+* **Connection**: 4x AA batteries positive terminal (+4.8V)
+* **Pin location**: VIN pin on ESP32 board
+* **Note**: Onboard regulator converts 4.8V to 3.3V for ESP32 operation
+
+**GND (Ground):**
+* **Connection**: 4x AA batteries negative terminal
+* **Pin location**: GND pin on ESP32 board
+* **Also connected**: Raspberry Pi GND (common ground reference)
+
+**3.3V Output:**
+* **Not used in this project** (powering from VIN)
+* **Available for**: Future low-power sensors if needed
+
+---
+
+==== I2S Microphone Interface (INMP441) ====
+
+**I2S Interface Used:** I2S0 (Primary I2S)
+
+**Pin Connections:**
+```
+INMP441 Pin    →    ESP32 GPIO    →    Function
+├── VDD       →    3.3V           →    Power (3.3V)
+├── GND       →    GND            →    Ground
+├── WS        →    GPIO 15        →    Word Select (LRCLK)
+├── SCK       →    GPIO 14        →    Serial Clock (BCLK)
+└── SD        →    GPIO 13        →    Serial Data (DOUT)
+```
+
+**Alternative Pin Options (if conflicts):**
+* WS: GPIO 25 or GPIO 26 (if I2S0 unavailable)
+* SCK: GPIO 2 or GPIO 4
+* SD: GPIO 12 or GPIO 27
+
+**I2S Configuration:**
+* Sample rate: 16 kHz (sufficient for voice)
+* Bit depth: 16-bit
+* Channels: Mono (1 channel)
+* Format: I2S standard (not MSB/LSB justified)
+
+---
+
+==== DAC Audio Output (PAM8403 Amplifier) ====
+
+**DAC Channel Used:** DAC1 (GPIO 25)
+
+**Pin Connections:**
+```
+ESP32 Pin      →    PAM8403 Pin   →    Function
+├── GPIO 25   →    IN+            →    Audio signal (positive)
+├── GND       →    IN-            →    Audio signal (negative/GND)
+├── 5V        →    VDD            →    Amplifier power (if needed)
+└── GND       →    GND             →    Common ground
+```
+
+**DAC Configuration:**
+* Resolution: 8-bit (256 levels)
+* Sample rate: 8-16 kHz (for TTS)
+* Output voltage: 0-3.3V (amplified by PAM8403)
+
+**Note:** ESP32 DAC output is weak (~12mA max), requires amplifier for speaker
+
+---
+
+==== UART Communication (Raspberry Pi) ====
+
+**UART Interface Used:** UART2 (recommended, avoids USB programming port)
+
+**Pin Connections:**
+```
+ESP32 Pin      →    Raspberry Pi Pin    →    Function
+├── GPIO 17   →    Pin 8 (GPIO 14)     →    TX (Transmit to Pi)
+├── GPIO 16   →    Pin 10 (GPIO 15)    →    RX (Receive from Pi)
+└── GND       →    Pin 6 (GND)          →    Common ground
+```
+
+**UART Configuration:**
+* Baud rate: 115200 bps
+* Data format: 8N1 (8 data bits, no parity, 1 stop bit)
+* Flow control: None
+* Protocol: JSON messages
+
+**Message Direction:**
+* ESP32 → Pi: Voice commands ("move forward", "stop", etc.)
+* Pi → ESP32: Status updates, acknowledgments
+
+---
+
+==== GPIO Pin Summary ====
+
+**Pins Used in Project:**
+```
+GPIO 13  → I2S Data (INMP441 SD)
+GPIO 14  → I2S Clock (INMP441 SCK)
+GPIO 15  → I2S Word Select (INMP441 WS)
+GPIO 16  → UART2 RX (receive from Pi)
+GPIO 17  → UART2 TX (transmit to Pi)
+GPIO 25  → DAC1 (audio output to PAM8403)
+```
+
+**Total GPIO Used:** 6 pins  
+**Available GPIO:** 28 pins (for future expansion)
+
+---
+
+===== Physical Connections Summary =====
+
+==== Complete Wiring Diagram ====
+
+**Power System:**
+```
+4x AA Batteries (4.8V)
+├── Red wire (+) → ESP32 VIN pin
+└── Black wire (-) → ESP32 GND pin + Raspberry Pi GND
+```
+
+**Microphone (INMP441):**
+```
+INMP441 Module
+├── VDD → ESP32 3.3V
+├── GND → ESP32 GND
+├── WS  → ESP32 GPIO 15
+├── SCK → ESP32 GPIO 14
+└── SD  → ESP32 GPIO 13
+```
+
+**Amplifier (PAM8403):**
+```
+PAM8403 Module
+├── IN+ → ESP32 GPIO 25 (DAC1)
+├── IN- → ESP32 GND
+├── OUT+ → Speaker positive terminal
+├── OUT- → Speaker negative terminal
+└── VDD → ESP32 3.3V or 5V (check module requirements)
+```
+
+**Speaker:**
+```
+4Ω 3W Speaker
+├── Positive → PAM8403 OUT+
+└── Negative → PAM8403 OUT-
+```
+
+**UART to Raspberry Pi:**
+```
+ESP32 ↔ Raspberry Pi
+├── GPIO 17 (TX) → Pi Pin 8 (GPIO 14 - RX)
+├── GPIO 16 (RX) → Pi Pin 10 (GPIO 15 - TX)
+└── GND → Pi Pin 6 (GND)
+```
+
+---
+
+===== I2S Interface Details =====
+
+==== Why I2S for Microphone? ====
+
+**Advantages:**
+* ✅ Digital interface (no ADC noise)
+* ✅ High quality audio capture
+* ✅ Synchronized clock (no drift)
+* ✅ Professional audio standard
+* ✅ ESP32 has dedicated I2S hardware
+
+**I2S Signal Description:**
+* **WS (Word Select)**: Left/Right channel select (mono = toggles)
+* **SCK (Serial Clock)**: Bit clock (determines sample rate)
+* **SD (Serial Data)**: Audio data stream
+
+**Timing:**
+* Sample rate: 16 kHz (voice recognition standard)
+* Bit clock: 16 kHz × 16 bits × 2 channels = 512 kHz
+* Word select: 16 kHz (matches sample rate)
+
+---
+
+===== DAC Output Details =====
+
+==== Why DAC for Audio Output? ====
+
+**Advantages:**
+* ✅ Built-in ESP32 hardware
+* ✅ No external ADC needed
+* ✅ Direct digital-to-analog conversion
+* ✅ Low CPU overhead
+
+**Limitations:**
+* ⚠️ 8-bit resolution (256 levels)
+* ⚠️ Weak output current (~12mA max)
+* ⚠️ Requires amplifier for speaker
+
+**Solution:**
+* Use PAM8403 Class-D amplifier
+* Amplifies weak DAC signal to 3W output
+* Powers 4Ω speaker effectively
+
+---
+
+===== UART Communication Protocol =====
+
+==== Message Format ====
+
+**ESP32 → Raspberry Pi (Commands):**
+```json
+{
+  "source": "esp32",
+  "command": "move_forward",
+  "timestamp": 1234567890
+}
+```
+
+**Raspberry Pi → ESP32 (Status):**
+```json
+{
+  "source": "raspberry_pi",
+  "status": "executing",
+  "message": "Moving forward",
+  "timestamp": 1234567891
+}
+```
+
+**Error Handling:**
+* Timeout: 1 second (if no response from Pi)
+* Retry: 3 attempts before error
+* Fallback: Display error on ESP32 serial monitor
+
+---
+
+===== Power Consumption Analysis =====
+
+==== Current Draw Breakdown ====
+
+**ESP32 Core:**
+* Active processing: 80-120 mA
+* WiFi enabled: +40-80 mA
+* Sleep mode: 20-30 mA
+
+**INMP441 Microphone:**
+* Active: 1.2 mA
+* Standby: 0.1 mA
+
+**PAM8403 Amplifier:**
+* Idle: 5-10 mA
+* 3W output: 200-300 mA (peak)
+
+**Total Consumption:**
+* Idle (no audio): ~100-130 mA
+* Voice processing: ~120-150 mA
+* Audio playback: ~300-400 mA (peak)
+
+**Battery Life Estimate:**
+* 4x AA batteries: 2500 mAh total
+* Continuous operation: 2500 mAh / 150 mA = ~16 hours
+* With audio playback: 2500 mAh / 300 mA = ~8 hours
+* **Realistic estimate: 6-8 hours** (accounting for peaks)
+
+---
+
+===== Operating Conditions =====
+
+**Temperature Range:**
+* Operating: -40°C to +85°C
+* Storage: -40°C to +150°C
+
+**Humidity:**
+* 5% to 95% non-condensing
+
+**Power Requirements:**
+* Input: 4.8V (4x AA batteries)
+* Regulated: 3.3V (onboard regulator)
+* Stable operation: 4.5V - 5.5V input range
+
+---
+
+===== Development Notes =====
+
+==== Pin Selection Rationale ====
+
+**Why UART2 (GPIO 16/17)?**
+* ✅ Avoids USB programming port (UART0)
+* ✅ Avoids internal flash pins (UART1)
+* ✅ Standard pins for external communication
+* ✅ Well-documented and stable
+
+**Why I2S0 (GPIO 13/14/15)?**
+* ✅ Primary I2S interface
+* ✅ Best performance
+* ✅ Standard configuration
+* ✅ No conflicts with other peripherals
+
+**Why DAC1 (GPIO 25)?**
+* ✅ Primary DAC channel
+* ✅ Good signal quality
+* ✅ Standard pin for audio output
+* ✅ Leaves DAC2 (GPIO 26) available for future use
+
+---
+
+===== Troubleshooting Guide =====
+
+==== Common Issues ====
+
+**Problem: No audio from speaker**
+* Check: PAM8403 power connection
+* Check: DAC output on GPIO 25
+* Check: Speaker impedance (should be 4Ω)
+* Check: Amplifier gain settings
+
+**Problem: Microphone not working**
+* Check: I2S pin connections (WS, SCK, SD)
+* Check: INMP441 power (3.3V)
+* Check: I2S sample rate configuration
+* Check: ESP32 I2S library initialization
+
+**Problem: UART communication fails**
+* Check: TX/RX connections (not swapped)
+* Check: Common GND connection
+* Check: Baud rate matches (115200)
+* Check: Message format (JSON valid)
+
+**Problem: ESP32 resets randomly**
+* Check: Power supply voltage (should be 4.5V+)
+* Check: Battery capacity (may be depleted)
+* Check: Current draw (may exceed battery capacity)
+* Check: Loose connections
+
+---
+
+===== References =====
+
+**ESP32 Official Documentation:**
+* ESP32 Datasheet
+* ESP32 Technical Reference Manual
+* ESP-IDF Programming Guide
+
+**Project-Specific:**
+* `Stage_2-Alexa_China.txt` - Project overview
+* `Raspberry_Pi_Pin_Mapping.txt` - Pi pin usage
+* Component datasheets (INMP441, PAM8403, Speaker)
+
+---
+
+**Documented By:** AI Assistant  
+**Date:** February 10, 2026  
+**Status:** Initial documentation complete  
+**Next Update:** After hardware integration testing
+
+---
+
+**ESP32 is not just a microcontroller.**  
+**ESP32 is the voice of ARGOS.**
+
+🎤✨
+

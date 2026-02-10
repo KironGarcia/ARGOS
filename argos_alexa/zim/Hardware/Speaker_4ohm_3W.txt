@@ -1,0 +1,337 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== Speaker 4Ω 3W ======
+Created Monday 10 February 2026
+
+===== Overview =====
+
+A 4Ω 3W speaker is used for audio output from the "Alexa China" voice system. It provides clear, audible voice responses for the ARGOS demonstration.
+
+**Role in Project:** Audio output for TTS (Text-to-Speech) responses  
+**Type:** Dynamic speaker (electromagnetic coil)  
+**Connection:** PAM8403 amplifier output  
+**Power:** 3W maximum (from PAM8403 amplifier)
+
+---
+
+===== Technical Specifications =====
+
+==== General Characteristics ====
+
+* **Type:** Dynamic speaker (moving coil)
+* **Impedance:** 4Ω (ohms)
+* **Power Rating:** 3W (watts) maximum
+* **Frequency Response:** 300 Hz - 8 kHz (typical for small speakers)
+* **Sensitivity:** 85-90 dB @ 1W, 1m (typical)
+* **Directionality:** Omnidirectional (radiates in all directions)
+
+==== Electrical Specifications ====
+
+* **Nominal Impedance:** 4Ω
+* **DC Resistance:** ~3.2-3.6Ω (typical)
+* **Maximum Power:** 3W (continuous)
+* **Peak Power:** 5-6W (short duration)
+* **Voltage at 3W:** ~3.5V RMS (calculated: √(3W × 4Ω) = 3.46V)
+
+==== Physical Specifications ====
+
+* **Diameter:** 40-50 mm (typical for 3W speaker)
+* **Mounting:** Standard speaker mounting holes
+* **Weight:** 10-20 grams
+* **Operating Temperature:** -10°C to +60°C
+* **Storage Temperature:** -20°C to +70°C
+
+---
+
+===== Impedance Matching =====
+
+==== Why 4Ω? ====
+
+**PAM8403 Amplifier:**
+* Designed for 4Ω or 8Ω speakers
+* 4Ω = maximum power output
+* 3W per channel @ 4Ω load
+
+**Power Transfer:**
+* **4Ω speaker:** Maximum power transfer ✅
+* **8Ω speaker:** Less power (~1.5W), but works
+* **2Ω speaker:** Too low, may damage amplifier ❌
+
+**For ARGOS:**
+* 4Ω 3W speaker is perfect match
+* Optimal power transfer
+* Maximum efficiency
+
+---
+
+===== Frequency Response =====
+
+==== Audio Characteristics ====
+
+**Frequency Range:**
+* **Typical:** 300 Hz - 8 kHz
+* **Voice Range:** 300 Hz - 3.4 kHz
+* **Coverage:** Excellent for voice ✅
+
+**Response Curve:**
+* **Bass (20-300 Hz):** Limited (small speaker)
+* **Mid-range (300-3.4 kHz):** Strong (voice frequencies)
+* **Treble (3.4-8 kHz):** Good
+* **High frequencies (>8 kHz):** Roll-off
+
+**For Voice Applications:**
+* ✅ Perfect for TTS responses
+* ✅ Clear and intelligible
+* ✅ Sufficient frequency range
+* ❌ Not suitable for music (limited bass)
+
+---
+
+===== Power Handling =====
+
+==== Power Ratings ====
+
+**Continuous Power:**
+* **3W:** Safe continuous operation
+* **Typical use:** 0.5-1.5W (voice responses)
+* **Safety margin:** 2x headroom ✅
+
+**Peak Power:**
+* **5-6W:** Short duration peaks
+* **Transient handling:** Good
+* **Protection:** Built-in (voice signals are limited)
+
+**Power Calculation:**
+* P = V² / R
+* At 3W: V = √(3W × 4Ω) = 3.46V RMS
+* PAM8403 can provide this voltage ✅
+
+---
+
+===== Physical Mounting =====
+
+==== Installation Considerations ====
+
+**Mounting Options:**
+* **Panel mount:** Cut hole in enclosure
+* **Surface mount:** Attach to flat surface
+* **Enclosure:** Mount in speaker box (optional)
+
+**Placement:**
+* **Direction:** Face toward audience
+* **Distance:** 1-2 meters for clear audio
+* **Isolation:** Away from vibration sources
+* **Protection:** Cover with grille (optional)
+
+**For ARGOS Car:**
+* Mount on ESP32 "Alexa China" module
+* Face forward (toward audience)
+* Isolate from motor vibrations
+* Accessible for maintenance
+
+---
+
+===== Connection to PAM8403 =====
+
+==== Wiring Diagram ====
+
+**Speaker Connections:**
+```
+PAM8403 Amplifier    →    Speaker
+├── OUT+            →    Speaker positive terminal
+└── OUT-            →    Speaker negative terminal
+```
+
+**Polarity:**
+* **Important:** Connect correctly (OUT+ to +, OUT- to -)
+* **Reversed:** Works but phase inverted (usually not noticeable for voice)
+* **Best practice:** Match polarity for consistency
+
+**Wire Specifications:**
+* **Gauge:** 20-24 AWG (sufficient for 3W)
+* **Length:** Keep short (<30 cm) for best performance
+* **Type:** Stranded wire (flexible)
+
+---
+
+===== Audio Quality Expectations =====
+
+==== Performance Characteristics ====
+
+**Volume Level:**
+* **1 meter distance:** 75-80 dB (comfortable listening)
+* **2 meter distance:** 70-75 dB (audible)
+* **3+ meters:** May be difficult to hear clearly
+
+**Clarity:**
+* **Voice intelligibility:** Excellent
+* **TTS responses:** Clear and understandable
+* **Background noise:** May reduce clarity
+
+**Distortion:**
+* **At 1W:** <5% (typical)
+* **At 3W:** <10% (still acceptable for voice)
+* **For voice:** Distortion not critical
+
+**For ARGOS Demo:**
+* ✅ Sufficient volume for presentation
+* ✅ Clear voice responses
+* ✅ Professional appearance
+
+---
+
+===== Power Consumption ====
+
+==== Current Draw ====
+
+**Speaker Current:**
+* **At 1W:** ~500 mA (calculated: I = √(P/R) = √(1W/4Ω) = 0.5A)
+* **At 3W:** ~870 mA (calculated: I = √(3W/4Ω) = 0.87A)
+* **Typical voice:** ~300-500 mA (0.5-1W output)
+
+**Battery Impact:**
+* 4x AA batteries: 2500 mAh
+* At 1W: ~5 hours continuous
+* At typical voice: ~10-15 hours
+* **Realistic:** Days of operation (intermittent use)
+
+---
+
+===== Environmental Considerations =====
+
+==== Operating Conditions ====
+
+**Temperature:**
+* **Operating:** -10°C to +60°C
+* **Storage:** -20°C to +70°C
+* **Indoor use:** No issues ✅
+
+**Humidity:**
+* **Typical:** 20-80% RH
+* **Protection:** Keep dry (not waterproof)
+
+**Vibration:**
+* **Sensitivity:** May be affected by motor vibrations
+* **Solution:** Isolate from car motors
+* **Mounting:** Use rubber grommets
+
+**For ARGOS Car:**
+* Indoor presentation environment
+* Controlled temperature
+* Isolate from motor vibrations
+* Protect from physical damage
+
+---
+
+===== Troubleshooting Guide =====
+
+==== Common Issues ====
+
+**Problem: No sound**
+* Check: Speaker connections (OUT+ and OUT-)
+* Check: PAM8403 power supply
+* Check: PAM8403 input signal (ESP32 DAC)
+* Check: Speaker impedance (should be 4Ω)
+* Check: Volume level (DAC output)
+
+**Problem: Distorted sound**
+* Check: Power supply voltage (should be stable)
+* Check: Input signal level (may be too high)
+* Check: Speaker power rating (not exceeding 3W)
+* Check: Impedance mismatch
+
+**Problem: Low volume**
+* Check: Power supply voltage (5V better than 3.3V)
+* Check: Input signal level (DAC output)
+* Check: Speaker impedance (4Ω correct)
+* Check: Distance from speaker
+
+**Problem: Buzzing/humming**
+* Check: GND connection (common ground essential)
+* Check: Power supply quality (clean voltage)
+* Check: Cable routing (away from digital signals)
+* Check: Electromagnetic interference
+
+---
+
+===== Integration Notes =====
+
+==== System Integration ====
+
+**Complete Audio Chain:**
+```
+ESP32 DAC (GPIO 25)
+    ↓
+PAM8403 Amplifier (IN+)
+    ↓
+PAM8403 Amplifier (OUT+)
+    ↓
+Speaker (4Ω 3W)
+    ↓
+Audio Output (Voice Responses)
+```
+
+**Signal Levels:**
+* ESP32 DAC: 0-3.3V (8-bit, 256 levels)
+* PAM8403 Input: 0-3.3V (amplified)
+* PAM8403 Output: 0-5V (or 0-3.3V) PWM
+* Speaker: 3.5V RMS @ 3W
+
+**Power Flow:**
+* ESP32: ~100 mA (DAC + processing)
+* PAM8403: ~300-400 mA (amplification)
+* Speaker: ~870 mA @ 3W (audio output)
+* **Total:** ~400-500 mA (typical voice output)
+
+---
+
+===== Performance Expectations ====
+
+**Audio Output:**
+* **Volume:** Sufficient for 1-2 meter distance
+* **Clarity:** Clear voice responses
+* **Frequency:** 300 Hz - 3.4 kHz (voice range)
+* **Quality:** Good for voice, not audiophile
+
+**Power Efficiency:**
+* **Idle:** 0 mA (speaker only)
+* **Active:** 300-500 mA (voice output)
+* **Peak:** 870 mA (maximum volume)
+
+**Battery Life:**
+* 4x AA batteries: 2500 mAh
+* Continuous voice: ~5-8 hours
+* Typical use: Days of operation
+
+---
+
+===== References =====
+
+**Speaker Specifications:**
+* 4Ω 3W Speaker Datasheet (vendor-specific)
+* Dynamic Speaker Application Notes
+
+**Amplifier Documentation:**
+* `PAM8403_Amplifier.txt` - Amplifier specifications
+* PAM8403 Datasheet
+
+**Project Documentation:**
+* `ESP32_Technical_Reference.txt` - ESP32 pin mapping
+* `Stage_2-Alexa_China.txt` - Project overview
+
+---
+
+**Documented By:** AI Assistant  
+**Date:** February 10, 2026  
+**Status:** Hardware documentation complete  
+**Next Update:** After integration testing
+
+---
+
+**Speaker is not just a component.**  
+**Speaker is the voice that speaks for ARGOS.**
+
+🔊🎤✨
+

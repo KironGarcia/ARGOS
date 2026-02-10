@@ -1,0 +1,594 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-10T00:00:00+00:00
+
+====== Checkpoint 2 ======
+Created Monday 10 February 2026
+
+===== Stage 1 Completion Status =====
+
+**Project Phase:** Stage 1 - Basic System Validation  
+**Status:** ✅ **FUNCTIONALLY COMPLETE** - Ready for calibration phase  
+**Date:** February 10, 2026
+
+---
+
+===== Differential Drive Testing Results =====
+
+==== System Validation ====
+
+**Test Status:** ✅ **TESTED AND FUNCTIONAL**
+
+**What Was Tested:**
+* Left turn maneuvers (Motor A backward + Motor B forward)
+* Right turn maneuvers (Motor A forward + Motor B backward)
+* Turning radius and vehicle response
+* Motor coordination during differential drive
+
+**Result:** Differential drive steering system **WORKS** as designed.
+
+---
+
+==== Critical Challenge Identified: Wheel Traction ====
+
+===== The Traction Problem =====
+
+**Issue:**
+* Front wheels are fixed (non-rotating)
+* Rear wheels need adequate traction for differential drive
+* 3D printed plastic wheels have insufficient grip on floor
+* Car slides instead of turning cleanly
+
+**Initial Solution Attempt: Rubber Strips**
+```
+Method: Add rubber/foam strips to rear wheels
+Problem encountered:
+├── Rubber strips would not stay attached
+├── Adhesive insufficient for rotating wheels
+└── Strips would peel off during operation
+```
+
+**Second Solution Attempt: Screws to Fix Rubber**
+```
+Method: Use screws to mechanically attach rubber to wheels
+Result: PARTIAL SUCCESS with issues
+
+Improvements:
+✅ Traction significantly improved
+✅ Rubber stays attached to wheels
+✅ Differential drive works better
+
+Problems created:
+❌ Screws protrude slightly from wheel surface
+❌ At certain points during rotation, screws contact floor
+❌ When screw touches floor: wheel slips/skids
+❌ Audible noise when screw hits floor surface
+❌ Unpredictable behavior during turns
+```
+
+---
+
+===== Professional Solution: AliExpress Rubber Tires =====
+
+**Decision:** Order proper rubber tires instead of DIY solutions
+
+**Order Details:**
+* **Product:** Pre-made rubber tires (compatible with wheel diameter)
+* **Source:** AliExpress
+* **Expected Arrival:** March 2026
+* **Reason:** Professional solution eliminates screw interference issues
+
+**Expected Benefits:**
+* ✅ Uniform traction across entire wheel surface
+* ✅ No protruding screws or noise
+* ✅ Predictable turning behavior
+* ✅ Professional appearance for demonstration
+* ✅ Reliable performance during presentation
+
+---
+
+===== Differential Drive Calibration Requirements =====
+
+==== Pending Fine-Tuning Tasks ====
+
+**The Challenge:**
+> Differential drive requires precise calibration of **three interdependent variables:**
+
+**Variable 1: Time Duration**
+* How long motors run in opposite directions
+* Directly affects turning angle
+* Needs testing for 45°, 90°, 180° turns
+
+**Variable 2: Motor Power/Speed**
+* PWM duty cycle percentage for each motor
+* Higher speed = sharper turns but less control
+* Lower speed = smoother turns but slower response
+* Balance needed for demo-quality movements
+
+**Variable 3: Wheel Traction**
+* Friction coefficient between tire and floor
+* Currently unknown with DIY rubber + screws
+* Will change significantly with new rubber tires
+* Must be re-tested after tire installation
+
+**Interdependency:**
+```
+Time × Power × Traction = Turning Angle
+
+Change ONE variable → ALL others must be recalibrated
+
+Example:
+├── Current Setup: 2 seconds @ 50% power + screw tires = ~90° turn
+└── New Rubber Tires: ??? seconds @ ??? power = 90° turn
+    (Must be determined experimentally)
+```
+
+---
+
+==== Why Calibration is Postponed ====
+
+**Reasoning:**
+1. ✅ Differential drive system **PROVEN FUNCTIONAL**
+2. ⏳ Final traction characteristics **UNKNOWN** until new tires arrive
+3. ⚠️ Calibrating now would be **WASTED EFFORT** (must recalibrate with new tires)
+4. 🎯 Better to wait for final hardware and calibrate once
+
+**Status:** Calibration phase **INTENTIONALLY DELAYED** until March 2026
+
+---
+
+===== Stage 1 System Status Summary =====
+
+==== ✅ Completed and Validated Components ====
+
+**Motor System:**
+* ✅ JGA25 12V motors installed and tested
+* ✅ L298N controller configured optimally (GPIO 26/20 for PWM)
+* ✅ Forward movement validated
+* ✅ Backward movement validated
+* ✅ Differential drive turning validated
+* ✅ Speed control via PWM functional
+
+**Sensor System:**
+* ✅ HC-SR04 ultrasonic sensor operational
+* ✅ Obstacle detection working (30cm threshold)
+* ✅ Emergency brake integration functional
+* ✅ Real-time monitoring thread stable
+
+**Power System:**
+* ✅ 12V battery for motors (stable)
+* ✅ 5V powerbank for Raspberry Pi + sensor (stable)
+* ✅ Common ground properly distributed (Pins 6, 9, 14)
+* ✅ No power issues or brownouts
+
+**Software System:**
+* ✅ GPIO control optimized (general purpose pins)
+* ✅ Multi-threaded architecture working
+* ✅ Motor direction test script (`motor-di.py`)
+* ✅ Sensor test script (`sensor_test.py`)
+* ✅ Main system script (`smart_car_system.py`)
+
+---
+
+==== ⏳ Pending Tasks (Stage 1 Finalization) ====
+
+**1. Hardware Upgrades (Waiting for Delivery):**
+* ⏳ **Rubber tires** (AliExpress - March 2026)
+  - Replace DIY rubber + screws solution
+  - Enable predictable traction
+
+**2. Calibration Phase (After Tire Installation):**
+* ⏳ **Speed vs Time vs Traction calibration**
+  - Determine optimal PWM duty cycle for turns
+  - Measure time needed for 45°, 90°, 180° turns
+  - Test turning reliability (10+ consecutive successful turns)
+  - Document final calibration values for demo
+
+**3. Presentation Training:**
+* ⏳ **Program demonstration sequence**
+  - Define exact movements for presentation
+  - Optimize speeds for visual impact
+  - Practice timing for 2-3 minute demo
+  - Test reliability in presentation environment
+
+**4. LCD Display Integration (Configuration Finalized):**
+* ⏳ **Real-time status messages**
+  - Display system status during operation
+  - Show attack/defense messages during demo
+  - **Decision:** LCD on Raspberry Pi (I2C pins 3 and 5)
+  - **Power:** 4x AA batteries (shared with sensors)
+  - **RGB backlight:** Green (normal) / Red (attack) - to be tested
+
+**5. Ultrasonic Sensor Pin Optimization (Future):**
+* ⏳ **Move sensor to cleaner pins**
+  - Current: TRIG Pin 18 (GPIO 24), ECHO Pin 19 (GPIO 10)
+  - Future: TRIG Pin 35 (GPIO 19), ECHO Pin 36 (GPIO 16)
+  - Reason: Free up pins 18/19 for other uses, cleaner pin allocation
+
+---
+
+===== Stage 2 Preparation: "Alexa China" Components =====
+
+==== Components Ordered for Voice System ====
+
+**Order Details:**
+* **Source:** AliExpress
+* **Expected Arrival:** March 2026 (together with rubber tires)
+
+**Components:**
+
+**1. Microphone Module**
+* Purpose: Voice input for "Hey ARGOS" wake word detection
+* Connection: ESP32 (I2S or ADC, to be determined)
+* Role: Capture user voice commands
+
+**2. Speaker + Amplifier Module**
+* Purpose: Audio output for TTS responses
+* Connection: ESP32 DAC + amplifier circuit
+* Role: ARGOS voice responses ("Moving forward", "Stopping", etc.)
+* Note: Creates tangible "Alexa China" device for demo
+
+**Status:** Components in transit, Stage 2 will begin after arrival
+
+---
+
+===== Project Transition: Stage 1 → Stage 2 =====
+
+==== Stage 1: COMPLETE (Pending Calibration) ====
+
+**Achievement Summary:**
+```
+✅ All core systems functional
+✅ Differential drive validated
+✅ Emergency brake working
+✅ Power system stable
+✅ Software architecture solid
+✅ Ready for final calibration phase
+```
+
+**Why Stage 1 is "Complete":**
+* All fundamental capabilities proven
+* No additional hardware changes to car platform
+* Only fine-tuning remains (post-tire delivery)
+* System is **demonstration-ready** (pending calibration)
+
+---
+
+==== Stage 2: Ready to Begin (After Component Arrival) ====
+
+**Next Phase Focus:** ESP32 "Alexa China" Voice Interface
+
+**Parallel Work Possible:**
+* 🔄 Can begin ESP32 software development now
+* 🔄 Can design voice command protocol
+* 🔄 Can plan attack simulation logic
+* ⏳ Physical integration waits for mic/speaker delivery
+
+**Stage 2 will NOT interfere with car platform:**
+* ESP32 is **separate system** (voice interface only)
+* Raspberry Pi retains **full motor control** (time-critical)
+* Stage 2 adds functionality, doesn't modify Stage 1
+
+---
+
+===== Current Project Pause Strategy =====
+
+==== Why Pause Car Development Now ====
+
+**Logical Reasons:**
+
+**1. Hardware Dependencies:**
+* Waiting for rubber tires (March)
+* Waiting for voice components (March)
+* Cannot proceed with calibration without final tires
+* Cannot build voice system without mic/speaker
+
+**2. Efficient Time Use:**
+* No point calibrating with temporary wheel solution
+* Calibration will need complete redo with new tires
+* Better to wait and calibrate once with final hardware
+
+**3. Risk Management:**
+* Avoid over-testing current wheel setup
+* Prevent potential damage from screw protrusions
+* Preserve motor/controller for final calibration phase
+
+**4. Project Planning:**
+* Stage 1 goals achieved (all systems validated)
+* Stage 2 components not yet available
+* Natural transition point in project timeline
+
+---
+
+==== What Happens During Pause ====
+
+**Car Status:**
+* ✅ Protected and stored safely
+* ✅ All systems remain functional
+* ✅ Ready to resume when components arrive
+* ✅ No maintenance required
+
+**Focus Shift:**
+* 🔄 Can work on ARGOS app backend
+* 🔄 Can develop ESP32 voice recognition algorithms
+* 🔄 Can plan attack simulation sequences
+* 🔄 Can prepare presentation materials
+
+---
+
+===== Pending Discussions Before Stage 1 Final =====
+
+==== Open Questions to Resolve ====
+
+**Topic 1: LCD Display Strategy**
+
+**Question:** Where should LCD 1602 be connected?
+
+**✅ DECISION MADE: LCD on Raspberry Pi**
+
+**Configuration Finalized:**
+```
+LCD 1602 I2C Module (4-pin interface):
+├── VCC  → 4x AA Batteries (+4.8V) - Shared power with sensors
+├── GND  → 4x AA Batteries (GND) + Raspberry Pi Pin 6 (common GND)
+├── SDA  → Raspberry Pi Pin 3 (GPIO 2 - SDA1)
+└── SCL  → Raspberry Pi Pin 5 (GPIO 3 - SCL1)
+```
+
+**Why This Decision:**
+* ✅ LCD has I2C module (only needs 4 pins, not 16)
+* ✅ Uses dedicated I2C pins (3 and 5) - hardware pull-up resistors included
+* ✅ Direct Pi control - no communication delay
+* ✅ Minimal GPIO usage (only 2 pins for I2C)
+* ✅ Can display real-time status during demo
+
+**Important Discovery:**
+* LCD purchased has RGB backlight capability
+* 16 pins soldered on side are NOT needed (I2C module handles everything)
+* Old soldered wires will be removed/isolated before installation
+* RGB color control to be tested (green for normal, red for attack)
+
+**Installation Plan:**
+* Phase: After tire calibration (March 2026)
+* Action: Remove unnecessary 16-pin soldered connections
+* Test: Basic text display first, then RGB backlight control
+
+---
+
+**Topic 2: Calibration Timing**
+
+**Question:** When exactly to perform final calibration?
+
+**Option A: Immediately after tire arrival (March)**
+```
+Pros:
+✅ Car ready for demo earlier
+✅ Can focus on Stage 2 after calibration
+
+Cons:
+❌ May need recalibration closer to presentation
+❌ Floor conditions may differ on demo day
+```
+
+**Option B: Close to presentation date**
+```
+Pros:
+✅ Calibration reflects actual demo environment
+✅ No drift from sitting idle
+✅ Fresh practice before presentation
+
+Cons:
+❌ Time pressure if issues arise
+❌ Less time for repeated practice runs
+```
+
+**Decision:** To be discussed based on presentation date
+
+---
+
+**Topic 3: Presentation Sequence Design**
+
+**Question:** What exact movements should demo showcase?
+
+**Current Ideas:**
+* Forward movement (show speed control)
+* Obstacle detection + emergency brake
+* Left turn (differential drive)
+* Right turn (differential drive)
+* Attack sequence (erratic movement)
+* Defense sequence (emergency stop)
+
+**To Define:**
+* Exact duration of each movement
+* Optimal speeds for visual impact
+* Backup sequences if primary fails
+* Total demo time allocation
+
+**Decision:** To be discussed during calibration phase
+
+---
+
+===== Timeline Projection =====
+
+==== March 2026: Component Arrival ====
+
+**Expected Deliveries:**
+* Rubber tires (AliExpress)
+* Microphone module (AliExpress)
+* Speaker + amplifier (AliExpress)
+
+**Actions Upon Arrival:**
+* Install new rubber tires on rear wheels
+* Begin Stage 1 final calibration
+* Begin Stage 2 ESP32 voice system integration (parallel work)
+
+---
+
+==== March-April 2026: Dual Development Phase ====
+
+**Track 1: Car Calibration (Stage 1 Finalization)**
+* Speed/time/traction calibration
+* Presentation sequence programming
+* Reliability testing (10+ perfect runs)
+* Demo environment practice
+
+**Track 2: Voice System (Stage 2 Phase 2)**
+* ESP32 + microphone integration
+* Wake word detection implementation
+* Command recognition (5 basic commands)
+* TTS response system
+* UART communication protocol
+
+**Timeline Estimate:** 3-4 weeks parallel work
+
+---
+
+==== April-May 2026: Integration & Attack Simulation ====
+
+**Stage 2 Phase 3: Attack Simulation**
+* Program vulnerability demonstration
+* Create "hacker terminal" visual display
+* Test attack sequence timing
+* Integrate with voice system
+
+**Stage 2 Phase 4: ARGOS Defense**
+* Anomaly detection algorithm
+* Defense response automation
+* Recovery protocol
+* Full attack → defense testing
+
+**Timeline Estimate:** 2-3 weeks
+
+---
+
+==== May 2026: Demo Polish & Presentation Prep ====
+
+**Final Phase:**
+* Complete demo run-throughs
+* Presentation script refinement
+* Backup plan preparation
+* Environment testing
+* Video backup recording
+
+**Timeline Estimate:** 1-2 weeks
+
+**Target Demo Date:** Late May / Early June 2026
+
+---
+
+===== Technical Achievements Summary =====
+
+==== What Stage 1 Proved ====
+
+**Engineering Success:**
+* ✅ Raspberry Pi Zero W sufficient for real-time motor control
+* ✅ Differential drive viable without servo motor
+* ✅ 12V motor upgrade dramatically improved performance
+* ✅ Pin optimization (GPIO 26/20) eliminated signal quality issues
+* ✅ Multi-threaded architecture handles sensor + motor coordination
+* ✅ Emergency brake integration reliable
+
+**Problem-Solving Success:**
+* ✅ L298N power configuration resolved (dual 5V supply)
+* ✅ Motor direction calibration achieved
+* ✅ Pin conflict identification and resolution (PCM_CLK issue)
+* ✅ GND distribution strategy (multiple pins for current handling)
+* ✅ Servo motor elimination decision (complexity reduction)
+
+**Design Maturity:**
+* ✅ Recognized when to simplify (servo removal)
+* ✅ Recognized when to wait (tire delivery before calibration)
+* ✅ Recognized project scope (Stage 2 pivot to "Alexa China")
+* ✅ Balanced ambition with practicality
+
+---
+
+===== Lessons Learned =====
+
+==== Hardware Lessons ====
+
+**Lesson 1: Professional Components vs DIY**
+> Sometimes buying the right part is faster/better than improvising
+
+**Lesson 2: System Interdependencies**
+> Changing one variable (tires) requires recalibration of entire system
+
+**Lesson 3: Pin Selection Matters**
+> Not all GPIO pins are equal - special function pins cause problems
+
+**Lesson 4: Power Architecture**
+> Independent power sources + common ground = stability
+
+---
+
+==== Project Management Lessons ====
+
+**Lesson 5: When to Pause**
+> Waiting for dependencies is better than working around them
+
+**Lesson 6: Scope Evolution**
+> Best projects adapt based on what works, not original plan
+
+**Lesson 7: Validation Before Complexity**
+> Prove basic system before adding advanced features
+
+**Lesson 8: Documentation Value**
+> Checkpoints preserve knowledge across pauses and pivots
+
+---
+
+===== Stage 1 Conclusion =====
+
+**Status:** ✅ **STAGE 1 VALIDATION COMPLETE**
+
+**What Was Achieved:**
+* Autonomous car platform functional
+* All core systems tested and validated
+* Differential drive proven viable
+* Power system stable and reliable
+* Software architecture solid
+* Ready for final calibration phase
+
+**What Remains (Stage 1):**
+* Install rubber tires (March 2026)
+* Perform speed/time/traction calibration
+* Program demonstration sequence
+* Test presentation reliability
+* Finalize LCD display strategy
+
+**Next Milestone:** Component arrival (March 2026)
+
+**Project Status:** Healthy pause at logical transition point
+
+---
+
+===== Documentation References =====
+
+**Previous Checkpoints:**
+* `Checkpoint.txt` - Stage 1 initial setup and motor upgrade
+* `Checkpoint_1.1.txt` - Motor calibration and pin optimization
+* `Alexa_China_Checkpoint.txt` - Project vision pivot
+
+**Current Checkpoint:**
+* `Checkpoint_2.txt` - Stage 1 completion and transition to Stage 2
+
+**Next Checkpoint:**
+* `Checkpoint_3.txt` - Will document voice system integration (March 2026)
+
+---
+
+**Documented By:** AI Assistant with user validation  
+**Date:** February 10, 2026  
+**Stage 1 Status:** ✅ **FUNCTIONALLY COMPLETE**  
+**Next Update:** After component arrival and calibration phase  
+**Project Confidence:** HIGH ✨
+
+---
+
+**ARGOS Stage 1 is not finished.**  
+**ARGOS Stage 1 is READY.**
+
+🚗🛡️✨
+
+
+
