@@ -2,9 +2,7 @@
   <img src="ARGOS-LOGO.jpeg" alt="ARGOS" width="400"/>
 </p>
 
-# ARGOS
-
-**Carta de apresentação do projeto**
+**One-pager — Vision, MVP & how we build**
 
 ---
 
