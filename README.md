@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ARGOS-LOGO.jpeg" alt="ARGOS" width="200"/>
+  <img src="ARGOS-LOGO.jpeg" alt="ARGOS" width="400"/>
 </p>
 
 # ARGOS
