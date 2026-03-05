@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ARGOS-LOGO.jpeg" alt="ARGOS" width="200"/>
+</p>
+
 # ARGOS
 
 **Carta de apresentação do projeto**
