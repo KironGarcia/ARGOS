@@ -1,0 +1,60 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-16T00:00:00+00:00
+
+====== Validação do Produto Argos (Pós-Pesquisa) ======
+Criado em Segunda-feira, 16 de Fevereiro de 2026
+
+===== 1. Ficha Técnica e Histórico de Evolução =====
+
+O projeto Argos é o resultado de um processo de filtragem técnica e de mercado.
+
+* **Origem (Legacy):** Iniciou como **IOTRAC**.
+* **O Filtro de Nicho:** Evoluiu para o **ARGOS**, focando no ambiente de **Smart Homes (Casas Inteligentes)** de classe média.
+* **Status de Validação:** A pesquisa confirmou a hipótese de que a classe média é a mais vulnerável devido ao consumo de dispositivos de baixo custo ("white label") sem protocolos de segurança robustos.
+
+===== 2. Modelo de Negócio e Monetização (Validado) =====
+
+Mudamos o foco para um modelo que gera autoridade e atende à dor emocional do cliente.
+
+* **Freemium:** 
+	* 2 dispositivos protegidos gratuitamente.
+	* Acesso total ao **ArgosBot Educativo**.
+	* **Objetivo:** Gerar consciência de risco e autoridade de marca.
+* **Premium (R$ 10/mês):** 
+	* Proteção de dispositivos ilimitados.
+	* Configurações avançadas (visualização técnica de proteções).
+	* Monitoramento proativo e suporte do ArgosBot.
+* **Estratégia B2B (Setor Financeiro):** 
+	* **O Problema:** Bancos perdem fortunas com ataques de botnets formados por dispositivos domésticos vulneráveis.
+	* **A Solução:** Parcerias com instituições financeiras. O ARGOS atua na "raiz" do problema (as casas), reduzindo o exército de botnets disponível para ataques a bancos. O apoio financeiro industrial ajuda a custear a proteção da classe média.
+
+===== 3. Proposta de Valor: Educação e Segurança Emocional =====
+
+O Argos não é apenas um bloqueador de ataques; ele é um **mestre em segurança**.
+
+* **Job to be Done:** "Ensinar o usuário a viver seguro em um mundo conectado".
+* **ArgosBot como Maestro:** O foco é educativo. O usuário tira uma foto de um novo dispositivo IoT (ex: uma câmera) e o ArgosBot analisa se aquele modelo possui vulnerabilidades conhecidas ou relatórios de risco, ensinando boas práticas de uso.
+* **Notificações Inteligentes:** O app avisa sobre perigos sem causar paranoia, explicando o que aconteceu e como o sistema protegeu o lar.
+
+===== 4. Visão Técnica: Protocolos e IA como Booster =====
+
+A arquitetura técnica foi refinada para ser mais precisa:
+
+* **Motor Principal:** Pesquisa contínua e implementação de protocolos de comunicação específicos para dispositivos IoT de mercado (foco nos mais atacados).
+* **IA como Orquestrador:** A Inteligência Artificial não é o motor de proteção bruto, mas sim o **Booster**. Ela atua aprendendo novos protocolos, realizando análises de comportamento em tempo real e orquestrando as camadas de proteção.
+* **Foco Inicial:** Escopo focado nos grupos de dispositivos mais vulneráveis identificados em pesquisa.
+
+===== 5. Narrativa: O Futuro já Chegou =====
+
+"A casa inteligente não é o futuro utópico dos filmes; ela é a geladeira, a Alexa e a máquina de lavar que você tem hoje. O perigo está em dispositivos simples que o usuário não suspeita. O Argos alerta para uma necessidade presente que ninguém ainda vê chegar, protegendo e educando antes que a escala do problema se torne catastrófica."
+
+===== 6. Estratégia de Demonstração (PoC) =====
+
+* **Live Hacking:** Demonstração visual via **ARGOS Car** e **ARGOS Alexa**.
+* **Infiltração:** Simulação de um hacker entrando na rede através de uma "Alexa China" (dispositivo vulnerável) e o ARGOS detectando e bloqueando a escalada do ataque para o restante da casa.
+
+---
+**Status Final da Pesquisa:** Validado com sucesso. O caminho para a startup está traçado.
+
+

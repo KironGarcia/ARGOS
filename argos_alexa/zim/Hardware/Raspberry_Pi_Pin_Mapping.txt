@@ -433,3 +433,6 @@ Pin  | GPIO | Function           | Component
 
 🧠✨
 
+
+
+

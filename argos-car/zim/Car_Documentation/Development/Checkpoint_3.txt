@@ -1,0 +1,71 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-21T00:00:00+00:00
+
+====== Checkpoint 3 ======
+Created Saturday 21 February 2026
+
+===== Session Summary: Motor Tests and Speed Tuning =====
+
+**Status:** ✅ Session in progress – script validated and working  
+**Date:** February 21, 2026  
+**Context:** Day started with motor tests and speed adjustments; more work planned with guest collaborator.
+
+---
+
+===== What We Did Today =====
+
+==== 1. Motor Tests and Speed Adjustments ====
+
+* Started the day with **motor tests** and **speed tuning** on the ARGOS car.
+* Confirmed that previous menu script was too slow (50% PWM) and differential drive was hard to notice.
+* Aligned behaviour with the working logic from **wheel_tests.py** (same pinout and direction logic).
+* **Speed settings:**
+  * **Adelante / Atrás:** 80% PWM, 2 seconds.
+  * **Derecha / Esquerda (tracción diferencial):** 100% PWM, **0.5 seconds** (short turn, no full circles).
+
+==== 2. Simple Menu Script Created ====
+
+**Script:** `menu_demo.py`  
+**Location (in project):** `argos-car/argos-architecture/src/menu_demo.py`
+
+**What it does:**
+* Menu-driven demo (no continuous sequence).
+* Options: **1** Adelante, **2** Atrás, **3** Derecha, **4** Esquerda, **5** Salir.
+* After each action the script stops and returns to the menu.
+* Uses current pinout: ENA = GPIO 26 (Pin 37), ENB = GPIO 20 (Pin 38), IN1–IN4 as in Checkpoint 1.1.
+* Differential drive for turns: same logic as wheel_tests.py.
+
+**How to use it:**
+
+**Copy script from PC to Raspberry Pi (run on your PC):**
+{{{code: lang="text" linenumbers="True"
+scp /home/kiron/Cursor/projeto-argos/ARGOS/argos-car/argos-architecture/src/menu_demo.py pi@argos.local:~/
+}}}
+
+**Run on the Raspberry Pi (after SSH: ssh pi@argos.local):**
+{{{code: lang="text" linenumbers="True"
+sudo python3 ~/menu_demo.py
+}}}
+
+**In the menu:** type 1–5 and Enter. Option 5 or Ctrl+C exits.
+
+---
+
+===== Where We Stop for Now =====
+
+* Motor tests and speed adjustments done; menu script working as intended.
+* **More work planned for today** – guest collaborator joining; goal is to leave the car and documentation in good shape for the session.
+
+---
+
+===== References =====
+
+* Pinout and motor logic: Checkpoint_1.1, wheel_tests.py
+* Script file: argos-car/argos-architecture/src/menu_demo.py
+
+---
+
+**Documented by:** AI Assistant with user validation  
+**Date:** February 21, 2026  
+**Next update:** After today’s session with guest

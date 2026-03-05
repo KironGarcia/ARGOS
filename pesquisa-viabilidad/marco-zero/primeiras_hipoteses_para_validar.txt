@@ -1,0 +1,36 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-02-16T00:00:00+00:00
+
+====== Primeiras Hipóteses para Validar ======
+Criado em Segunda-feira, 16 de Fevereiro de 2026
+
+===== 1. O Problema: "A Invisibilidade do Risco" =====
+
+A principal hipótese é que existe uma necessidade real, mas não uma "dor sentida" imediata. O cliente não sabe que precisa de proteção até que o desastre aconteça.
+
+* **Hipótese de Conflito (Hacker vs. Lucratividade):**
+	* Pergunta: Qual a infraestrutura que um hacker precisa para invadir uma casa comum? Vale a pena o esforço?
+	* Validação: A pesquisa confirmou que ataques automatizados via botnets tornam o hackeamento de dispositivos simples (lâmpadas, tomadas) lucrativo para ataques em larga escala contra bancos e infraestruturas.
+
+* **Hipótese de Público (Classe Média):**
+	* Foco validado: É o público que consome tecnologia de baixo custo sem preocupação com segurança de fábrica.
+
+===== 2. Mapa de Pesquisa Estruturada (Resultados) =====
+
+==== Etapa 1: A Dor Silenciosa ====
+* **Resultado:** O usuário comum sente que está seguro, mas muda de percepção ao ser apresentado aos dados de vulnerabilidade de dispositivos "simples" como geladeiras e Alexas.
+
+==== Etapa 2: Validação de Solução ====
+* **O App Educador:** A ideia de um app que "ensina" e "cuida" teve maior aceitação do que um app puramente técnico. O ArgosBot como mestre é o diferencial.
+
+==== Etapa 3: Viabilidade Jurídica e Financeira ====
+* **Monetização:** Modelo Freemium (2 dispositivos) + Premium (R$ 10/mês) validado como uma barreira de entrada baixa e escalável.
+
+===== 3. Definição de Persona (Rango de Cliente Extremo) =====
+* **O "Pai de Família Conectado":** Preocupa-se com a segurança da casa, tem dispositivos IoT, mas não tem tempo/conhecimento para configurar firewalls complexos.
+
+---
+**Conclusão:** Hipóteses validadas. O projeto tem sinal verde para seguir para a fase de prototipagem refinada.
+
+

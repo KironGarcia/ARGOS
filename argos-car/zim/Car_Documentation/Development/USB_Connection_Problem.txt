@@ -629,3 +629,6 @@ sudo nmcli device wifi connect "KironStarlink"
 
 
 
+
+
+
