@@ -1,0 +1,49 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-05T00:00:00+00:00
+
+====== First Steps With Alexa System ======
+Created Thursday 5 March 2026
+
+===== Purpose =====
+
+This document records the **first day of work** on the Alexa China voice system (argos_alexa). Key project information and step-by-step progress will be added here as we advance.
+
+===== Planned content (to be filled as we progress) =====
+
+* **Section 1 — Research: Connecting voice and speaker components on ESP32**  
+  To be added when the physical setup is validated and the user confirms satisfaction with the result. Will include: how to connect the microphone (INMP441) and speaker chain (PAM8403 + 4Ω 3W speaker) to the ESP32, wiring, and references used during the first build session.
+
+* Further sections will be added for subsequent steps (e.g. first audio test, wake word, UART).
+
+===== Session log =====
+
+* **2026-03-05:** Document created. Structure aligned with argos-car Development docs. Waiting for research summary and first successful setup to fill Section 1.
+
+* **2026-03-06:** First full hardware test session. See "Session 2026-03-06" below.
+
+===== Session 2026-03-06 — First successful test of mic, speaker and LEDs =====
+
+**Objective:** Validate microphone (INMP441), amplifier/speaker (PAM8403 + 4Ω 3W), and status LEDs (GPIO 5, 18) on the ESP32.
+
+**Approach:** Started with the combined test sketch ''1test.ino'' (menu: mic, speaker, LEDs). Then switched to separate sketches to isolate issues.
+
+==== Problems encountered and fixes ====
+
+* **LEDs not responding / speaker hiss when driving LEDs:** When all subsystems shared the same power (VIN for amplifier + LEDs), the LEDs did not turn on and the speaker produced hiss when the LED signal was sent. Solution: test LEDs separately (''teste_só_luces.ino'') and keep LED current path independent from the amplifier supply.
+
+* **LED polarity:** LEDs were initially soldered with the resistor and signal in the wrong arrangement. Correct wiring: **signal (GPIO)** → resistor → **long leg (anode)** of LED → **short leg (cathode)** → GND. The long leg is positive; the resistor must be in series on the path to GND, not between both legs in a way that bypasses GPIO control.
+
+* **LEDs always on:** After fixing polarity, the LEDs stayed on constantly and the program had no effect. Cause: a **VCC (3V3 or VIN) wire was also connected to the positive (long) leg** of each LED alongside the GPIO signal. The GPIO cannot turn the LED off if VCC is always feeding the anode. **Fix:** Remove the VCC wire from the LED positive side. Only the GPIO pin (D5 for one LED, D18 for the other) must supply the positive side; no separate power wire. After cutting the VCC cable from each LED, the LEDs responded correctly to the sketch.
+
+==== Outcome ====
+
+* **Microphone:** Working. Tested with ''teste_só_microfone.ino'' (10 s capture, analysis). Result: "MICROFONE FUNCIONOU" with levels consistent with voice.
+* **Speaker (amplifier + 4Ω 3W):** Working. Tested with 1test option 2 (sweep tone). Volume is strong; no hardware issues.
+* **LEDs (yellow GPIO 5, red GPIO 18):** Working. Tested with ''teste_só_luces.ino'' (both LEDs fade together, 5 s cycle). Correct connection: GPIO → resistor → LED anode → LED cathode → GND; no VCC on the LED anode.
+
+==== Decision: LEDs removed from project ====
+
+After confirming the LEDs worked, we decided to **remove them from the Alexa system entirely**. Reasons: the LEDs did not provide the illumination we needed; they added complexity without real benefit; and they caused interference (hiss in the speaker when driven). To keep the setup simple and avoid crosstalk, the project now uses **ESP32 with microphone and speaker only** — no status LEDs in the final hardware.
+
+**Current state:** Alexa China hardware = ESP32 + INMP441 microphone + PAM8403 + 4Ω 3W speaker. No LEDs. Ready to proceed with integrated firmware and next steps (e.g. wake word, UART).

@@ -6,8 +6,8 @@
 ---
 
 ## Última actualización
-**Fecha:** 2026-03-04  
-**Sesión:** Creación del ZIM **ARGOS-STARTUP** en `zim/ARGOS-STARTUP.txt`. Descripción general del proyecto en inglés: propuesta de valor, experiencia, jobs to be done, públicos (B2C/B2B), resumen de modelo de negocio, estrategia de demo (Car + Alexa China), estado actual de app/carro/Alexa, e ideas nuevas (mecatrónica: dual-brain, personalidad, pivot Alexa China; .cursor: orquestrador, documentación). CONTEXT sigue como memoria viva; el ZIM se actualiza solo cuando lo pidas.
+**Fecha:** 2026-03-06  
+**Sesión:** Primer día de trabajo físico con **argos_alexa**. Hardware validado (micrófono INMP441, amplificador PAM8403 + altavoz 4Ω 3W, LEDs testados y removidos del proyecto). Arquitectura de comunicación completa definida: Edge Impulse (10 palabras clave en ESP32) + WiFi HTTP POST → Flask RPi → .wav en SD card → ESP8266Audio + DAC GPIO 25. Módulo SD confirmado como componente requerido. Próxima sesión: conectar SD, instalar ESP8266Audio, probar reproducción .wav desde SD.
 
 ---
 
@@ -40,7 +40,7 @@
 | Módulo | Estado | Notas |
 |--------|--------|-------|
 | argos-car | ⏳ Stage 1 | RPi Zero W, L298N, JGA25 12V, tracción diferencial, HC-SR04. Código en argos-architecture/src. Checkpoint actualizado |
-| argos_alexa | 🔴 documentación / plan | Stage 2 en Zim; ESP32 como “Alexa china”; integración y voz por hacer |
+| argos_alexa | ⏳ Stage 2 — hardware validado | ESP32 Dev Module + INMP441 (I2S: WS=D15, SCK=D14, SD=D13) + PAM8403 + altavoz 4Ω 3W (DAC=D25). Sin LEDs (removidos). Sketches de test en alexa-architecture/src/. Arquitectura de voz definida: Edge Impulse (10 keywords) + WiFi HTTP POST → Flask RPi → .wav en SD card → ESP8266Audio. Módulo SD requerido (CS=D5, SCK=D18, MISO=D19, MOSI=D23). Checkpoint_1 en zim/Development/. |
 
 ---
 
@@ -49,6 +49,7 @@
 - **Sistema de trabajo:** Apertura de Cursor → carga GLOBAL → carga orquestrador (Zeus). Puedes decir "Zeus, hoy necesito tu ayuda" o usar palabras clave (HOY TRABAJAMOS EN BACKEND, etc.). Cierre del día con "terminamos el trabajo del día" actualiza CONTEXT, pregunta por ZIM y sincroniza documentación .cursor. Skills disponibles para coordinar varios sectores y para sugerir nuevas skills cuando detectes tareas recurrentes.
 - **Reglas con datos reales:** Backend (stack, BD, endpoints), frontend (stack, tema, componentes, ApiConfig), mecatrónica (pines, checkpoints, Alexa), ia-engineer (stack, intents, personalidad Argos, integración LLM).
 - **Producto (app):** Auth, dispositivos, comandos, logs, alertas, chatbot de seguridad y Bluetooth en desarrollo; validar en entorno real según corresponda.
+- **argos_alexa hardware:** INMP441 + PAM8403 + altavoz validados. Sketches de test funcionales. Arquitectura Edge Impulse + WiFi + Flask + SD card definida y documentada en Checkpoint_1.
 
 ---
 
@@ -56,12 +57,13 @@
 
 - Games y business: sin avance aún en producto, por eso sus reglas siguen con [COMPLETAR].
 - Mecatrónica: sensor HC-SR04 en pines que pueden interferir con SPI; monitorear si se usa SPI. Comunicación app ↔ carro cuando el carro esté registrado como dispositivo (según backend).
+- argos_alexa: reproducción de audio por DAC (ESP8266Audio) aún no probada — primer paso crítico de la próxima sesión. Verificar conflicto de pines SD (D5/D18) antes de conectar módulo.
 
 ---
 
 ## Próximos pasos priorizados
 
-1. Usar el orquestrador en el día a día (Zeus + palabras clave + cierre del día) para afianzar el flujo.
+1. **argos_alexa — próxima sesión:** Conectar módulo SD (D5/D18/D19/D23), instalar ESP8266Audio, probar reproducción de .wav desde SD por DAC GPIO 25 → PAM8403 → altavoz. Si funciona, seguir con Edge Impulse (entrenar 10 keywords) y luego Flask en RPi.
 2. Avanzar en el proyecto (app, carro o Alexa) según prioridad; con eso se podrán rellenar games.md y business.md cuando haya contenido.
 3. Al cerrar sesiones futuras, seguir actualizando CONTEXT (y ZIM solo si tú lo pides).
 
@@ -74,4 +76,6 @@
 - **Nombres por agente:** Zeus (orquestrador), Apolo (backend), Afrodite (frontend), Atena (IA), Loki (games), Era (empresa), Hermes (mecatrónica). Para delegar por nombre ("dile a Apolo que...").
 - **Sincronización .cursor:** Al decir "terminamos el trabajo del día", Zeus actualiza CONTEXT (con tu aprobación), pregunta por ZIM y luego sincroniza automáticamente la documentación técnica de .cursor (sin pedir aprobación por cada cambio técnico).
 - **ZIM:** Solo se actualiza cuando tú lo pides explícitamente; siempre en inglés y siguiendo el patrón existente.
-- **Comentarios y strings en código:** Portugués (Brasil) en todo el proyecto ARGOS.
+- **Idiomas:** Conversación contigo = español; código, comentarios, strings, contexto ARGOS = portugués (Brasil); documentación ZIM = inglés.
+- **argos_alexa sin LEDs:** LEDs (GPIO 5 y 18) testados pero removidos del proyecto final por interferencia con el altavoz y complejidad innecesaria. Hardware final = ESP32 + INMP441 + PAM8403 + altavoz.
+- **argos_alexa arquitectura de voz:** Edge Impulse (10 keywords locales en ESP32, sin internet) + WiFi HTTP POST al RPi + Flask server + .wav pre-grabados en SD card + ESP8266Audio para reproducción. Control del carro por voz incluido (misma arquitectura, intents distintos que lanzan comandos en la RPi).

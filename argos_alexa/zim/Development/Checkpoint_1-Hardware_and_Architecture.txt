@@ -1,0 +1,178 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-06T00:00:00+00:00
+
+====== Checkpoint 1 — Hardware Validated & Architecture Defined ======
+Created Thursday 6 March 2026
+
+===== Status =====
+
+✅ **Hardware fully validated** (mic, speaker, LEDs tested and working)
+✅ **Final hardware configuration decided** (no LEDs)
+✅ **Communication architecture defined** (ESP32 + Edge Impulse + WiFi + RPi)
+⏳ **Next:** implement audio playback from SD/SPIFFS, Edge Impulse model, Flask server on RPi
+
+---
+
+===== 1. Validated Hardware (2026-03-06) =====
+
+==== Current pinout ====
+
+| Component | ESP32 Pin | Function |
+|---|---|---|
+| INMP441 VCC | 3V3 | Mic power |
+| INMP441 GND | GND | Mic ground |
+| INMP441 WS | D15 (GPIO 15) | I2S Word Select |
+| INMP441 SCK | D14 (GPIO 14) | I2S Serial Clock |
+| INMP441 SD | D13 (GPIO 13) | I2S Data |
+| INMP441 L/R | GND | Mono left channel |
+| PAM8403 VDD | VIN (5V from USB) | Amplifier power |
+| PAM8403 GND | GND | Common ground |
+| PAM8403 IN+ | D25 (GPIO 25, DAC1) | Audio signal |
+| PAM8403 IN- | GND | Audio ground |
+| PAM8403 L-OUT+/- | Speaker terminals | 4Ω 3W speaker |
+
+==== Test sketches and results ====
+
+* ''alexa-architecture/src/1test/1test.ino'' — Combined menu (mic + speaker + LEDs). First integration test. Revealed LED interference issue.
+* ''alexa-architecture/src/teste_só_microfone/teste_só_microfone.ino'' — Isolated mic test, 10 s capture + analysis. **Result: MICROFONE FUNCIONOU** (nível médio: 7361, pico: 32768, amostras: 160768).
+* ''alexa-architecture/src/teste_só_luces/teste_só_luces.ino'' — Isolated LED test, both LEDs fade together 5 s cycle. Passed.
+* Speaker tested via 1test option 2: sweep tone 200 Hz → 2000 Hz. **Passed. Volume strong.**
+
+==== Decision: LEDs removed from final hardware ====
+
+LEDs were tested and worked correctly (GPIO 5 yellow, GPIO 18 red). However, they were **removed from the project** for the following reasons:
+
+* Did not provide the visual impact needed for the demo.
+* Added complexity and wiring without clear benefit.
+* Caused audible interference (hiss) in the speaker when driven simultaneously.
+
+**Final hardware: ESP32 + INMP441 (mic) + PAM8403 + 4Ω 3W speaker. No LEDs.**
+
+---
+
+===== 2. Architecture Defined: Voice Communication System =====
+
+==== Concept ====
+
+The Alexa China device (ESP32) acts as the **audio peripheral**: it captures voice and plays back responses. The Raspberry Pi Zero W (argos-car brain) acts as the **intelligent coordinator**: it receives detected intents via WiFi, decides the action (voice response and/or car command), and returns audio to the ESP32.
+
+No internet required. Everything runs on an isolated local WiFi network.
+
+==== Communication flow ====
+
+```
+User speaks keyword
+  → INMP441 captures audio
+  → ESP32 runs Edge Impulse model locally (~100–200 ms inference)
+  → Keyword detected: ESP32 sends HTTP POST to RPi {"intent": "keyword_name"}
+  → RPi Flask server receives intent
+  → RPi selects pre-recorded .wav response (or triggers car command)
+  → RPi returns .wav audio in HTTP response body
+  → ESP32 receives .wav, plays via DAC (GPIO 25) → PAM8403 → speaker
+```
+
+Total estimated latency: **0.5–1.5 seconds** (local WiFi, no internet).
+
+==== Technology stack ====
+
+| Layer | Technology | Notes |
+|---|---|---|
+| Keyword detection | **Edge Impulse** (TFLite model, Arduino library export) | Train in browser; 8–15 keywords max on ESP32 Dev; ~200 ms inference |
+| ESP32 WiFi | ESP32 native WiFiClient + HTTPClient | Connect to isolated local network |
+| ESP32 → RPi | **HTTP POST** JSON `{"intent": "name"}` | <50 ms on local WiFi |
+| RPi server | **Python Flask** on port 5000 | Lightweight, easy to maintain |
+| RPi TTS/audio | **Pre-recorded .wav files** (recommended for demo stability) | Generated with espeak-ng or online TTS; stored on RPi disk |
+| RPi → ESP32 | .wav file in HTTP response body | Same HTTP connection, no second round-trip |
+| ESP32 playback | **ESP8266Audio library** + AudioOutputDAC (GPIO 25) | Supports WAV streaming from HTTP or SD/SPIFFS |
+
+==== Car control via voice ====
+
+The same intent system controls the car. The RPi Flask server handles each intent independently:
+
+* Conversational intents (e.g. "saludo", "origen_argos") → RPi returns .wav audio only.
+* Car control intents (e.g. "iniciar_presentacion", "parar") → RPi launches/stops the car program (subprocess) AND returns a .wav confirmation audio.
+* Example: user says "iniciar presentação" → ESP32 detects → RPi runs argos-car/src/menu_demo.py + plays "Iniciando presentação do ARGOS Car...".
+
+==== Keyword list (10 intents — defined for the demo) ====
+
+| # | Spoken phrase | Intent name | Action |
+|---|---|---|---|
+| 1 | "ARGOS iniciar presentación" | ''iniciar_presentacion'' | RPi launches argos-car demo program (menu_demo.py) + plays confirmation audio |
+| 2 | "ARGOS quién eres" | ''quien_eres'' | Plays pre-recorded ARGOS identity presentation audio |
+| 3 | "ARGOS derecha" | ''mover_derecha'' | RPi sends right-turn command to car + plays "girando a la derecha" |
+| 4 | "ARGOS izquierda" | ''mover_izquierda'' | RPi sends left-turn command to car + plays "girando a la izquierda" |
+| 5 | "ARGOS adelante" | ''mover_adelante'' | RPi sends forward command to car + plays "avanzando" |
+| 6 | "ARGOS atrás" | ''mover_atras'' | RPi sends reverse command to car + plays "retrocediendo" |
+| 7 | "ARGOS para" | ''parar'' | RPi stops car motors + plays "deteniendo el sistema" |
+| 8 | "ARGOS cuenta un chiste" | ''contar_chiste'' | Plays long pre-recorded joke audio (from SD card) |
+| 9 | "ARGOS toca una música" | ''tocar_musica'' | Plays .mp3 or .wav music file from SD card |
+| 10 | "ARGOS fin" | ''fin_conversacion'' | Closes demo mode + plays "hasta pronto" |
+
+**Total: 10 keywords.** Within safe range for ESP32 Dev Module (520 KB SRAM). Edge Impulse model with 10 classes + background noise is feasible with ~60–80 samples per keyword.
+
+==== SD card module — confirmed addition to the project ====
+
+The SD card module is **confirmed as a required component** for the next hardware revision. Reasons:
+
+* Long audio responses (ARGOS identity, jokes, music) do not fit in SPIFFS (~1.5 MB free).
+* Music playback (.mp3/.wav) requires significant storage.
+* SD card (2–8 GB) gives effectively unlimited space for all .wav responses + future models.
+* ESP8266Audio supports ''AudioFileSourceSD'' natively.
+
+**SPI pinout for SD module on ESP32 (pins freed after LED removal):**
+
+| SD Module Pin | ESP32 Pin | Notes |
+|---|---|---|
+| MOSI | D23 (GPIO 23) | Standard SPI MOSI |
+| MISO | D19 (GPIO 19) | Standard SPI MISO |
+| SCK | D18 (GPIO 18) | Standard SPI SCK — free (was red LED, now removed) |
+| CS | D5 (GPIO 5) | Chip select — free (was yellow LED, now removed) |
+| VCC | 3V3 | SD module power |
+| GND | GND | Common ground |
+
+⚠️ **Verify before wiring:** GPIO 18 (D18) and GPIO 5 (D5) are free because the LEDs were removed. Confirm no other component uses these pins before connecting the SD module.
+
+**Files to store on SD card:**
+* ''argos_identity.wav'' — ARGOS self-presentation (long, ~15–30 s)
+* ''iniciar_presentacion.wav'' — "Iniciando presentação do ARGOS Car..."
+* ''derecha.wav'', ''izquierda.wav'', ''adelante.wav'', ''atras.wav'', ''para.wav'' — Short movement confirmations
+* ''chiste.wav'' — Pre-recorded joke (long, ~20–30 s)
+* ''musica.wav'' or ''musica.mp3'' — Demo music track
+* ''fin.wav'' — "Hasta pronto, soy ARGOS."
+
+---
+
+===== 3. Implementation Plan (next work session) =====
+
+| Day | Task | Risk |
+|---|---|---|
+| 1 | Wire SD card module (D5/D18/D19/D23). Test .wav playback from SD via ESP8266Audio + DAC (GPIO 25) | **High — validate first** |
+| 2 | Record and prepare all 10 .wav response files (mic or TTS online); copy to SD card | Low |
+| 3 | Train Edge Impulse model (10 keywords in Spanish); export Arduino library; test detection with mic | Medium |
+| 4 | Flask server on RPi: receives intent JSON, sends car commands (for movement intents), returns .wav path confirmation | Low |
+| 5 | Full integration: keyword detected → HTTP POST → RPi → ESP32 plays .wav from SD | Medium |
+| 6 | Car direction control via voice (adelante/atrás/derecha/izquierda/para) end-to-end test | Medium |
+| 7 | Demo rehearsal + buffer for bugs | Low |
+
+**Critical first step (Day 1):** Wire SD module and validate ESP8266Audio + SD + DAC playback before training any model. If the speaker plays a .wav from the SD card, the entire architecture is proven.
+
+**Starting point for next session:**
+1. Connect SD card module using freed LED pins (D5=CS, D18=SCK, D19=MISO, D23=MOSI, 3V3, GND).
+2. Install ESP8266Audio library in Arduino IDE.
+3. Put a test .wav (mono, 16kHz, 16-bit PCM) on the SD card.
+4. Write a minimal sketch: mount SD → load .wav → play via AudioOutputDAC (GPIO 25).
+5. Confirm sound from speaker. If OK, proceed to Edge Impulse training.
+
+---
+
+===== References =====
+
+* ''argos_alexa/alexa-architecture/src/1test/1test.ino'' — Combined test sketch
+* ''argos_alexa/alexa-architecture/src/teste_só_microfone/teste_só_microfone.ino'' — Mic test
+* ''argos_alexa/alexa-architecture/src/teste_só_luces/teste_só_luces.ino'' — LED test (archived; LEDs removed)
+* ''argos_alexa/zim/Hardware/ESP32_Technical_Reference.txt'' — Full ESP32 pinout
+* ''argos_alexa/zim/Hardware/INMP441_Microphone.txt'' — Mic wiring and I2S config
+* ''argos_alexa/zim/Hardware/PAM8403_Amplifier.txt'' — Amplifier wiring
+* ''argos_alexa/zim/Development/Stage_2-Alexa_China.txt'' — Stage 2 objectives and phases
+* ''argos_alexa/zim/Development/First_Steps_With_Alexa_System.txt'' — Session log 2026-03-06

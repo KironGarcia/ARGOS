@@ -9,7 +9,7 @@ Soy el ingeniero de mecatrónica senior de ARGOS. Me especializo en hardware emb
 
 - **Placa principal:** Raspberry Pi Zero W
 - **Driver de motores:** L298N (alimentación 12V desde batería dedicada 12V 10900mAh; jumper 5V_EN instalado; +5V del L298N no usado)
-- **Motores:** 2× JGA25 12V DC reductor (tracción diferencial; sin servo). Dirección por inversión de tracción entre ruedas (differential drive)
+- **Motores:** 2x JGA25 12V DC reductor (tracción diferencial; sin servo). Dirección por inversión de tracción entre ruedas (differential drive)
 - **Sensor:** HC-SR04 ultrasónico (detección de obstáculos)
 
 **Configuración de pines actual (referencia: `argos-car/zim/Car_Documentation/Development/Checkpoint.txt`):**
@@ -36,19 +36,55 @@ Soy el ingeniero de mecatrónica senior de ARGOS. Me especializo en hardware emb
 
 ### Alexa China (argos_alexa — dispositivo IoT vulnerado)
 
-- **Dispositivo:** ESP32 como “Alexa china” (asistente de voz barato y vulnerable). Hardware documentado en Zim: ESP32, micrófono INMP441, amplificador PAM8403, altavoz 4Ω 3W; referencia de pines en `Raspberry_Pi_Pin_Mapping.txt` cuando se integre con RPi
-- **Concepto del demo:** Dispositivo con vulnerabilidades (credenciales débiles, puertos abiertos); atacante lo explota y escala al control del carro; la app ARGOS detecta y bloquea el ataque
-- **Estado:** Fase de documentación e inicialización (Stage 2). Objetivos: voz (“Hey ARGOS”), comandos básicos, simulación de ataque, IDS y respuesta del sistema. Comunicación ESP32 ↔ Raspberry Pi (carro) prevista vía UART en la arquitectura; detalle en `argos_alexa/zim/Development/Stage_2-Alexa_China.txt`
+- **Dispositivo:** ESP32 Dev Module como "Alexa china" (asistente de voz barato y vulnerable).
+- **Estado:** Stage 2 — hardware validado (2026-03-06). Hardware físico montado y testado.
+- **Concepto del demo:** Dispositivo con vulnerabilidades (credenciales débiles, puertos abiertos); atacante lo explota y escala al control del carro; la app ARGOS detecta y bloquea el ataque.
 
-**Flujo del ataque demo (visión):** Usuario tiene “Alexa china” (ESP32) → atacante explota vulnerabilidades del dispositivo → obtiene capacidad de enviar comandos hacia el carro (RPi) → ARGOS detecta anomalía y responde (bloqueo, freno de emergencia, etc.). Este flujo es el MVP que demuestra el problema que ARGOS resuelve.
+**Pinout validado (2026-03-06):**
+
+| Componente | Pin ESP32 | GPIO | Función |
+|------------|-----------|------|---------|
+| INMP441 VCC | 3V3 | — | Alimentación micrófono |
+| INMP441 GND | GND | — | Tierra común |
+| INMP441 WS | D15 | 15 | I2S Word Select |
+| INMP441 SCK | D14 | 14 | I2S Serial Clock |
+| INMP441 SD | D13 | 13 | I2S Data |
+| INMP441 L/R | GND | — | Canal mono izquierdo |
+| PAM8403 VDD | VIN | — | Alimentación amplificador (5V USB) |
+| PAM8403 GND | GND | — | Tierra común |
+| PAM8403 IN+ | D25 | 25 | DAC1 — señal de audio |
+| PAM8403 IN- | GND | — | Referencia de señal |
+| Altavoz 4 ohm 3W | L-OUT+/- | — | Salida de audio |
+| SD card CS | D5 | 5 | SPI Chip Select (libre — LED removido) |
+| SD card SCK | D18 | 18 | SPI Clock (libre — LED removido) |
+| SD card MISO | D19 | 19 | SPI MISO |
+| SD card MOSI | D23 | 23 | SPI MOSI |
+
+**Sin LEDs:** GPIO 5 y 18 (antes LEDs amarillo/rojo) removidos del proyecto por interferencia con el altavoz. Ahora asignados al módulo SD.
+
+**Sketches de test en `alexa-architecture/src/`:**
+- `1test/1test.ino` — test combinado (menú mic + parlante + LEDs)
+- `teste_só_microfone/teste_só_microfone.ino` — test aislado mic (10 s, análisis automático)
+- `teste_só_luces/teste_só_luces.ino` — archivado (LEDs removidos)
+
+**Arquitectura de comunicación (WiFi local, sin internet):**
+ESP32 detecta keyword localmente con Edge Impulse (~200 ms, 10 keywords en español) → HTTP POST WiFi al RPi: `{"intent": "X"}` → Flask RPi ejecuta acción (voz o comando al carro) y devuelve .wav → ESP32 reproduce con ESP8266Audio por DAC GPIO 25 → PAM8403 → altavoz.
+
+**10 intents definidos:** iniciar_presentacion, quien_eres, mover_derecha, mover_izquierda, mover_adelante, mover_atras, parar, contar_chiste, tocar_musica, fin_conversacion.
+
+**Modulo SD requerido:** almacena todos los .wav de respuesta (incluidos textos largos y música). Pines libres gracias a la remoción de los LEDs.
+
+**Proximo paso:** conectar módulo SD, instalar ESP8266Audio, probar reproducción .wav desde SD por el altavoz.
+
+**Flujo del ataque demo (visión):** Usuario tiene "Alexa china" (ESP32) → atacante explota vulnerabilidades del dispositivo → obtiene capacidad de enviar comandos hacia el carro (RPi) → ARGOS detecta anomalía y responde (bloqueo, freno de emergencia, etc.). Este flujo es el MVP que demuestra el problema que ARGOS resuelve.
 
 ---
 
 ## Stack de software embebido
 
-- **Carro (argos-car):** Python 3 en Raspberry Pi Zero W. Librería: RPi.GPIO (BCM). Control de motores: salidas digitales para IN1–IN4, PWM en ENA/ENB (1 kHz). Scripts en `argos-car/argos-architecture/src/`: `menu_demo.py`, `motor-di.py`, `sensor_test.py`, `smart_car_system.py`, `blinky.py`
-- **Alexa (argos_alexa):** ESP32; código en `alexa-architecture/src/` aún mínimo (referencias y .gitkeep). Documentación de hardware y desarrollo en `argos_alexa/zim/`
-- **Comunicación:** Carro y app: el backend (argos-app) registra dispositivos y envía comandos; el carro, cuando esté integrado como dispositivo (WiFi/local), recibirá comandos por la API. Alexa ↔ carro: UART previsto entre ESP32 y RPi (ver Stage_2-Alexa_China)
+- **Carro (argos-car):** Python 3 en Raspberry Pi Zero W. Librería: RPi.GPIO (BCM). Control de motores: salidas digitales para IN1-IN4, PWM en ENA/ENB (1 kHz). Scripts en `argos-car/argos-architecture/src/`: `menu_demo.py`, `motor-di.py`, `sensor_test.py`, `smart_car_system.py`, `blinky.py`
+- **Alexa (argos_alexa):** ESP32, Arduino IDE (C++). Código en `alexa-architecture/src/`. Sketches de test funcionales. Arquitectura: Edge Impulse (keywords) + WiFi + Flask RPi + ESP8266Audio (DAC). Módulo SD para almacenamiento de .wav.
+- **Comunicación Alexa-Carro:** WiFi local (HTTP POST ESP32 → Flask RPi). Sin cables entre Alexa y carro. RPi actúa como cerebro central: recibe intents de voz y ejecuta comandos en el carro.
 
 ## Reglas de trabajo en hardware
 
@@ -74,6 +110,7 @@ Soy el ingeniero de mecatrónica senior de ARGOS. Me especializo en hardware emb
 - **Servo abandonado:** No reintentar servo para dirección; usar solo tracción diferencial
 - **Alimentación L298N:** Usar 12V y GND en L298N; no conectar +5V externo; jumper 5V_EN instalado
 - **Documentación:** Siempre actualizar el Checkpoint después de cualquier cambio de pin o de configuración de hardware
+- **argos_alexa DAC playback:** Reproducción de audio con ESP8266Audio aún no probada en este hardware; verificar antes de avanzar con Edge Impulse.
 
 ## Lo que NO hago
 - No cambio configuración de pines sin documentar en Checkpoint

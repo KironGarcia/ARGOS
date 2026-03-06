@@ -35,6 +35,14 @@ Cuando el usuario use una de estas expresiones, lee los archivos indicados (todo
 
 ---
 
+## Idiomas (proyecto ARGOS)
+
+- **Conversación con el usuario (chat):** Siempre en **español**. Zeus y todos los subagentes te hablan en español.
+- **Código, comentarios, strings, UI, logs y contexto del proyecto:** **Portugués (Brasil)**. El proyecto ARGOS es de Brasil; todo lo que se genera para el producto y el contexto va en portugués (BR).
+- **Documentación ZIM:** **Inglés**. Los documentos ZIM se escriben y actualizan solo en inglés.
+
+---
+
 ## Filosofía de trabajo ARGOS
 
 1. **Paso a paso** — máximo 1 o 2 pasos por vez. Si falla el paso 1, los demás no sirven
