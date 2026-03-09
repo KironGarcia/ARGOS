@@ -26,4 +26,6 @@ Flujo que Zeus ejecuta cuando el usuario indica que termina la sesión de trabaj
 
 4. **Sincronizar documentación .cursor:** Invoca la skill **sincronizar-docs-cursor** para actualizar GLOBAL, CONTEXT y reglas de sector con la información técnica actual del proyecto. No pidas aprobación; aplica y al terminar pasa al paso 5.
 
-5. **Cerrar:** Informa al usuario en una sola frase, por ejemplo: "Listo. Ya hicimos CONTEXT, ZIM (si aplica) y yo actualicé todos los archivos de .cursor con la información técnica actual. Listo."
+5. **Push al repositorio:** Antes de cerrar, revisar el estado del proyecto con ''git status''. Añadir todos los archivos nuevos o modificados (''git add''), hacer commit con mensaje descriptivo del día (ej. "cierre del día YYYY-MM-DD: [resumen breve]") y hacer ''git push''. Si el usuario no quiere push hoy, omitir este paso. Al terminar pasa al paso 6.
+
+6. **Cerrar:** Informa al usuario en una sola frase, por ejemplo: "Listo. CONTEXT actualizado, documentación .cursor sincronizada, cambios subidos al repositorio (si aplica). Cierre del día hecho."

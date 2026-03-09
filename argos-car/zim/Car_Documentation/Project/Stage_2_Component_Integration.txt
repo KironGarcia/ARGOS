@@ -108,7 +108,7 @@ Powerbank 5V 10,000mAh
 
 **Common Ground:**
 * All three power systems share GND reference
-* GND connected via Raspberry Pi pins 6, 9, 14
+* GND: Pin 9 = HC-SR04 ultrasonic; Pin 6 and 14 = L298N common ground
 
 **Advantages:**
 * ✅ Electrical isolation prevents cross-contamination
@@ -185,7 +185,7 @@ Common GND between both controllers
 || IN3 | Pin 15 | GPIO 22 | Motor B Dir 1 | |
 || IN4 | Pin 16 | GPIO 23 | Motor B Dir 2 | |
 || **HC-SR04 Ultrasonic Sensor** ||||||
-|| GND | Pin 9 | GND | Ground reference | Shared with powerbank |
+|| GND | Pin 9 | GND | Sensor GND (ultrasonic) — cable direct to Pi |
 || TRIG | Pin 18 | GPIO 24 | Sensor trigger | |
 || ECHO | Pin 19 | GPIO 10 | Sensor echo | Via voltage divider |
 || **UART to ESP32** ||||||

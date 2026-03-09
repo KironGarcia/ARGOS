@@ -77,9 +77,9 @@ Powerbank GND (-) → L298N "GND" pin    (Common Ground)
 
 {{{code: lang="text" linenumbers="True"
 Cable USB cortado (GND) → 3 jumpers paralelos:
-                          ├── Jumper 1 → Pi Pin 6 (GND)
-                          ├── Jumper 2 → Pi Pin 9 (GND)  
-                          └── Jumper 3 → Pi Pin 14 (GND)
+                          ├── Jumper 1 → Pi Pin 6 (GND) — L298N common ground
+                          ├── Jumper 2 → Pi Pin 9 (GND) — HC-SR04 ultrasonic (sensor cable)
+                          └── Jumper 3 → Pi Pin 14 (GND) — L298N common ground
 }}}
 
 **Why This Works:** All Raspberry Pi GND pins internally connected to same ground plane. Using multiple pins distributes current load safely.
@@ -94,9 +94,9 @@ Cable USB cortado (GND) → 3 jumpers paralelos:
 | Pin 13                                                                | 27   | IN2       | Motor A Direction 2 |     |
 | Pin 15                                                                | 22   | IN3       | Motor B Direction 1 |     |
 | Pin 16                                                                | 23   | IN4       | Motor B Direction 2 |     |
-| Pin 6                                                                 | GND  | GND       | Common Ground 1     |     |
-| Pin 9                                                                 | GND  | GND       | Common Ground 2     |     |
-| Pin 14                                                                | GND  | GND       | Common Ground 3     | }}} |
+| Pin 6                                                                 | GND  | GND       | L298N Common Ground 1 |     |
+| Pin 9                                                                 | GND  | GND       | HC-SR04 ultrasonic (sensor GND) |     |
+| Pin 14                                                                | GND  | GND       | L298N Common Ground 2 | }}} |
 |                                                                       |      |           |                     |     |
 | **Power Connections:**                                                |      |           |                     |     |
 | * Powerbank 5V (+) → L298N "+5V" pin (Logic Power)                    |      |           |                     |     |

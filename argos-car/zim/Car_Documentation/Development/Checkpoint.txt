@@ -27,12 +27,12 @@ Created Friday 07 February 2026
 || IN3 | Pin 15 | GPIO 22 | Motor B Direction 1 |
 || IN4 | Pin 16 | GPIO 23 | Motor B Direction 2 |
 || **HC-SR04 Ultrasonic Sensor** ||||
-|| GND (Sensor) | Pin 9 | GND | Ground reference sensor |
+|| GND (Sensor) | Pin 9 | GND | HC-SR04 ultrasonic (sensor GND) |
 || TRIG | Pin 19 | GPIO 10 | Sensor trigger |
 || ECHO | Pin 21 | GPIO 9 | Sensor echo |
 
 **Notes:**
-* Multiple GND pins used to distribute current safely (Pin 6, 9, 14)
+* GND: Pin 9 = HC-SR04 ultrasonic; Pin 6 and 14 = L298N common ground
 * ENA and ENB connected for PWM speed control (Pins 37/38 - general purpose, no conflicts)
 * L298N powered with 12V battery (5V_EN jumper INSTALLED - factory default)
 * 12V battery connects directly to L298N "+12V" and "GND" pins

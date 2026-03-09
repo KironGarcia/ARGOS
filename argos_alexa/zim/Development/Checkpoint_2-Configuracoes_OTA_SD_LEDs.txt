@@ -1,0 +1,150 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-07T00:00:00+00:00
+
+====== Checkpoint 2 — OTA Configuration, SD Module and LEDs ======
+Created Saturday 7 March 2026
+
+===== Status =====
+
+✅ **OTA (Over-The-Air) configured** — upload via WiFi; sketch ''ota_wifi'' in ''alexa-architecture/src/ota_wifi/''
+✅ **SD module defined** — SPI pinout with alternate pins (D5/D18 occupied by LEDs)
+✅ **LEDs reintroduced** — two yellow LEDs, powered from cut USB cable (avoid speaker interference)
+✅ **ESP32 workflow defined** — single program, WiFi+OTA header always at top, functions added below
+⏳ **Next:** integrate functions into base sketch (mic, SD, audio playback, etc.) in an orderly way
+
+---
+
+===== 1. Understanding: ESP32 is not like the Raspberry Pi =====
+
+The ESP32 **does not have** a filesystem like the Pi. There are no multiple saved scripts or separate config folders.
+
+* **Single program:** The ESP32 runs **only one sketch** (one application) in flash. When you upload a new sketch (via USB or OTA), it **fully replaces** the previous one. The previous code is gone.
+* **No "choose which script to run":** There is no equivalent to ''python3 script.py''. Whatever is flashed is what runs on boot.
+* **Configuration (e.g. WiFi):** Either **in the code** of that sketch, or stored in NVS/SPIFFS that the sketch reads at startup. No system files like ''/etc/NetworkManager''.
+* **Consequence for the project:** Everything we want the ESP32 to do (WiFi, OTA, mic, SD, LEDs, audio) must be **in the same sketch**. The **WiFi + OTA** configuration header must **always be at the top** and run first; then we **add functions** one by one, carefully, to avoid conflicts. The code flow must stay organized in a clear chain.
+
+**Rule from now on:** Every sketch we run on the ESP32 must include the **WiFi + OTA header** at the start; then we add the rest of the functions in order.
+
+---
+
+===== 2. OTA Configuration =====
+
+* **Sketch:** ''alexa-architecture/src/ota_wifi/ota_wifi.ino''
+* **Purpose:** Connect to WiFi and enable Over-The-Air updates so we can upload sketches over the network (without depending on the data USB cable).
+* **Usage:** Flashed once via USB; from then on the ESP32 connects to the network on boot and accepts WiFi uploads. In Arduino IDE: Tools → Port → network port (ESP32 IP, e.g. 192.168.1.79).
+* **Requirement:** In **any** sketch we use day to day, include the same WiFi + ArduinoOTA block (''#include <WiFi.h>'', ''#include <ArduinoOTA.h>'', setup in ''setup()'', ''ArduinoOTA.handle()'' in ''loop()''), so we do not lose OTA when uploading a new sketch.
+
+---
+
+===== 3. SD Module — Connection to the System =====
+
+The SD module connects to the ESP32 via **SPI**. Pins D5 and D18 are used by the LEDs, so alternate pins are used for SCK and CS.
+
+**SD module connection table:**
+
+| SD Module Pin | ESP32 Pin | GPIO | Function |
+|---|---|---|---|
+| MOSI | D23 | 23 | SPI data (output) |
+| MISO | D19 | 19 | SPI data (input) |
+| SCK | D4 | 4 | SPI clock |
+| CS | D22 | 22 | Chip select |
+| VCC | 3V3 | — | Module power |
+| GND | GND | — | Common ground |
+
+**In code:** When initializing the SD (''SPI.begin'' or ''SD.begin''), set **SCK = 4** and **CS = 22**.
+
+**Power:** The SD module and LEDs can be powered from the **same cut USB cable** that powers the ESP32 (powerbank), to keep a common GND and avoid conflicts when programming from another USB source.
+
+---
+
+===== 4. LEDs — Reintroduction and Role =====
+
+* **Decision:** LEDs **returned** to the project, with changes from Checkpoint 1.
+* **Connection:** Power (5V and GND) **directly on the cut USB cable** that powers the ESP32 (powerbank). The **signal** for each LED comes from the ESP32. This avoids speaker interference (which occurred when LEDs and amplifier shared the same supply).
+* **Count and colour:** Two **yellow** LEDs for the "eyes" of the Alexa (aesthetic).
+* **Function:** **Aesthetic only.** They do not change state (e.g. to red) when the system is hacked; they are only to make the device look better.
+* **Pins (unchanged from initial tests):**
+
+| LED | ESP32 Pin | GPIO |
+|---|---|---|
+| LED 1 (yellow) | D5 | 5 |
+| LED 2 (yellow) | D18 | 18 |
+
+---
+
+===== 5. Current Pinout Table — ESP32 (Alexa China) =====
+
+Current pin usage after Checkpoint 2:
+
+| Component | ESP32 Pin | GPIO | Function |
+|---|---|---|---|
+| **INMP441 (mic)** | D15 | 15 | I2S Word Select |
+| | D14 | 14 | I2S Serial Clock |
+| | D13 | 13 | I2S Data |
+| **PAM8403 (amp)** | D25 | 25 | DAC1 — audio signal |
+| **LEDs (2× yellow)** | D5 | 5 | LED 1 signal |
+| | D18 | 18 | LED 2 signal |
+| **SD module** | D23 | 23 | SPI MOSI |
+| | D19 | 19 | SPI MISO |
+| | D4 | 4 | SPI SCK |
+| | D22 | 22 | SPI CS |
+| **Power** | 3V3, GND, VIN | — | Mic (3V3); rest shared (cut USB cable / powerbank) |
+
+**Note:** WiFi and OTA do not use physical pins; they use the ESP32 radio and network stack.
+
+---
+
+===== 6. Single-Sketch Development Strategy =====
+
+* **Fixed header:** In every sketch we use, the **first block** is always **WiFi + OTA** configuration (network connection and ''ArduinoOTA.begin()'' in ''setup()'', ''ArduinoOTA.handle()'' in ''loop()'').
+* **Adding functions:** New features (mic, SD read, audio playback, LED control, etc.) are added **step by step**, one at a time, to keep the flow organized and avoid conflicts (e.g. same pins, blocking ''loop()'').
+* **Suggested order for next sessions:** (1) Keep OTA in all sketches; (2) test SD module (read/write); (3) audio playback from SD; (4) integrate mic then Edge Impulse; (5) HTTP communication with RPi. Document each step to continue work.
+
+---
+
+===== 7. Keyword / Intent Limit (Must Respect and Test) =====
+
+The number of voice keywords (intents) the ESP32 can run is limited by **RAM at runtime**, not by whether the model or audio is stored on the SD card. WiFi, OTA, audio buffers, HTTP client, and SD all share the same ~520 KB RAM with the TFLite model and its tensor arena.
+
+* **Safe limit:** **10–12 keywords.** With the full program (WiFi + OTA + mic + SD + HTTP + playback), staying at 10–12 intents leaves enough margin so the system runs without memory issues or instability.
+* **Higher (15–20):** Possible in many cases, but **not guaranteed**. The model and arena use more RAM; we must **test the full sketch** (all features enabled) and confirm there are no conflicts, crashes, or freezes before relying on it in the demo.
+* **Rule:** We **respect** the safe limit (10–12) for the main design. If we need more intents, we add them only after **proving** that the full system runs well with that many keywords (train model → flash → run complete flow → verify no conflicts).
+
+**Summary:** Limit is RAM, not SD. Safe = 10–12 keywords; above that, test thoroughly before considering it stable.
+
+---
+
+===== 8. Voice Audios and Trigger Phrases — Map (Current Design) =====
+
+Audios are stored in ''argos_alexa/audio/''. Each function is triggered by a **short phrase** (not a single word). The ESP32 detects the phrase, plays the corresponding audio from SD, and may send an intent to the Raspberry Pi.
+
+**Design decision:** There is **no separate audio for each car movement command** (e.g. no "girando a la derecha" per turn). A single audio — "voice control activated" / system ready — is used when voice control is enabled; the car then obeys movement commands without ARGOS narrating every step. This keeps the demo lean and avoids repetition.
+
+==== Relation: trigger phrase → audio file → action ====
+
+| Trigger phrase (user says) | Audio file | Action |
+|---|---|---|
+| "Argos, iniciar demo" | ''inicar-demo.wav'' | Play audio, then start presentation process on Raspberry Pi (car presentation script to be created). |
+| "Argos qual é a origem do seu nome?" | ''nombre-argos.wav'' | Play audio explaining the origin of the name ARGOS (mythology + mission). |
+| "Argos conta uma piada" | ''piada.wav'' | Play joke audio. |
+| "Argos ativar voice control" | ''voice-control.wav'' | Play "voice control activated" (or similar); enable voice control so car movement commands are accepted. No per-command narration. |
+| "Argos toca uma música" | ''tocar-musica.wav'' then ''*.mp3'' | Play short confirmation audio (tocar-musica.wav), then play the music file (e.g. the .mp3 in the audio folder). |
+
+**Note:** Car movement commands (e.g. adelante, atrás, derecha, izquierda, parar) are not listed above because they do not have a dedicated ARGOS narration audio; they are handled after voice control is activated, with the single "voice control activated" message covering the whole mode.
+
+**Audio folder (current):** ''argos_alexa/audio/'' — contains the .wav files above and the .mp3 used for "toca uma música". Presentation script for the car (RPi) is still to be created; mapping of phrases, keywords and audios is as above.
+
+---
+
+===== References =====
+
+* ''argos_alexa/zim/Development/Checkpoint_1-Hardware_and_Architecture.txt'' — voice architecture, keyword list, stack
+* ''argos_alexa/alexa-architecture/src/ota_wifi/ota_wifi.ino'' — OTA + WiFi sketch
+* ''argos_alexa/alexa-architecture/src/teste_só_luces/teste_só_luces.ino'' — LED test (pins 5 and 18)
+
+---
+
+**Documented by:** Hermes/Zeus with user validation  
+**Date:** 7 March 2026  
+**Next update:** When adding each new function to the base sketch (SD, audio, mic, etc.)

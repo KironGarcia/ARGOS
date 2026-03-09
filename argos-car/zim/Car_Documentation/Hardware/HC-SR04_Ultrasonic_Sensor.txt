@@ -50,10 +50,10 @@ Where:
 IMPORTANT: HC-SR04 powered by POWERBANK (not Raspberry Pi)
 
 HC-SR04 Pin         →    Connection
-├── VCC             →    Powerbank +5V (via cut USB cable)
-├── GND             →    Powerbank GND (via cut USB cable) 
+├── VCC             →    Pi 5V (Pin 2 ou 4) ou powerbank +5V
+├── GND             →    Pi Pin 9 (GND) — sensor cable connected directly to Pi
 ├── TRIG            →    GPIO 24 (Pin 18) - Raspberry Pi
-└── ECHO            →    GPIO 23 (Pin 16) - Raspberry Pi *VOLTAGE ISSUE*
+└── ECHO            →    GPIO 10 (Pin 19) - Raspberry Pi (com proteção 5V→3.3V)
 
 VOLTAGE ANALYSIS - IMPORTANT CLARIFICATION:
 - VCC powered by powerbank: NO RISK to Pi ✅

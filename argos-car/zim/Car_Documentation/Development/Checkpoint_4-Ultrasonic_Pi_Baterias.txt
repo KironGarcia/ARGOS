@@ -1,0 +1,93 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-07T00:00:00+00:00
+
+====== Checkpoint 4 — Ultrasonic on Pi, Power and Battery Simplification ======
+Created Saturday 7 March 2026
+
+===== Status =====
+
+✅ **HC-SR04 ultrasonic sensor** — now powered **directly from the Raspberry Pi** (5V and GND on Pi pins); cables changed for direct connection
+✅ **GND Pin 9** — documented as sensor GND (ultrasonic); Pin 6 and 14 for L298N
+✅ **One battery removed from project** — AA cells eliminated; car uses **two sources**: motor battery (L298N) and powerbank powering the Pi
+✅ **LCD 1602** — future power from Pi as well (when integrated)
+⏳ **Next:** keep this pinout; when LCD is soldered, connect VCC/GND to Pi and SDA/SCL (I2C)
+
+---
+
+===== 1. Ultrasonic Power Changes =====
+
+* **Before:** HC-SR04 could be powered by powerbank (cut USB cable) or AA cells, with GND shared with the Pi.
+* **Now:** Sensor is powered **directly from the Raspberry Pi**:
+  * **VCC** → Pi Pin 2 or 4 (5V)
+  * **GND** → **Pin 9 (GND)** — sensor cable connected directly to Pi (confirmed in docs; Pin 9 reserved for HC-SR04)
+  * **TRIG** → GPIO 24 (Pin 18) — Raspberry Pi
+  * **ECHO** → GPIO 10 (Pin 19) — with 5V→3.3V protection (resistor + LED or voltage divider) to avoid damaging the Pi
+
+**Rationale:** Simplify cabling, free space on the car, and centralize sensor/peripheral power on the Pi. The Pi (powered by powerbank) has enough current margin for HC-SR04 (~15 mA) and, in the future, for the LCD 1602.
+
+---
+
+===== 2. LCD 1602 — Future Power from Pi =====
+
+* The LCD 1602 (with I2C module) is planned to be powered **from the Pi** when integrated.
+* **Planned connection:** VCC and GND on Pi 5V and GND pins; SDA → GPIO 2 (Pin 3), SCL → GPIO 3 (Pin 5). Enable I2C on Pi (''raspi-config'').
+* This keeps a single power logic for sensors and display on the car (all from Pi + powerbank).
+
+---
+
+===== 3. Battery Simplification =====
+
+* **Before:** The project used several sources: motor battery (L298N), powerbank for the Pi, and in some setups **AA cells** (e.g. 4×1.2 V) for sensors or other modules.
+* **Decision:** Remove **AA cells** from the project. With the ultrasonic (and later the LCD) powered from the Pi and other simplifications, **three battery sets are no longer needed**.
+* **Current car power setup:**
+  * **Motor battery** → L298N (12 V for motors; logic per module configuration).
+  * **Powerbank** → Powers the **Raspberry Pi** (Pi USB input). From the Pi come 5V and GND for HC-SR04 and, in the future, for the LCD.
+* **Summary:** Two sources are enough — motor battery + Pi powerbank. The car is simpler with fewer cables and failure points.
+
+---
+
+===== 4. Current Pinout Table — Raspberry Pi Zero W (argos-car) =====
+
+Current pin usage after Checkpoint 4:
+
+| Component | Physical Pin | GPIO | Function |
+|---|---|---|---|
+| **L298N (motors)** | | | |
+| IN1 | 11 | 17 | Motor A direction 1 |
+| IN2 | 13 | 27 | Motor A direction 2 |
+| IN3 | 15 | 22 | Motor B direction 1 |
+| IN4 | 16 | 23 | Motor B direction 2 |
+| ENA | 37 | 26 | Motor A PWM |
+| ENB | 38 | 20 | Motor B PWM |
+| **GND L298N** | 6 | GND | Common ground 1 |
+| **GND L298N** | 14 | GND | Common ground 2 |
+| **HC-SR04 (ultrasonic)** | | | |
+| VCC | 2 or 4 | 5V | Sensor power |
+| GND | **9** | GND | Sensor GND (cable direct to Pi) |
+| TRIG | 18 | 24 | Trigger |
+| ECHO | 19 | 10 | Echo (with 5V→3.3V protection) |
+| **LCD 1602 (future)** | | | |
+| VCC | 2 or 4 | 5V | Power (planned) |
+| GND | 6, 9, 14, 20, etc. | GND | Ground (planned) |
+| SDA | 3 | 2 | I2C Data (planned) |
+| SCL | 5 | 3 | I2C Clock (planned) |
+
+**Notes:**
+* Pin 9 (GND) is dedicated to HC-SR04 in the docs; Pin 6 and 14 are used for L298N common ground.
+* Sensor test code (e.g. ''sensor_test.py'') uses TRIG = GPIO 24, ECHO = GPIO 10.
+
+---
+
+===== 5. References =====
+
+* ''argos-car/zim/Car_Documentation/Hardware/HC-SR04_Ultrasonic_Sensor.txt'' — connections and ECHO protection
+* ''argos-car/zim/Car_Documentation/Hardware/Raspberry_PI_Zero_W.txt'' — network and SSH
+* ''argos-car/zim/Car_Documentation/Development/Checkpoint_1.1.txt'' — motor and sensor pinout (reference)
+* ''argos-car/zim/Car_Documentation/Development/What_to_do_now.txt'' — GND Pin 9 = HC-SR04, Pin 6/14 = L298N
+
+---
+
+**Documented by:** Hermes/Zeus with user validation  
+**Date:** 7 March 2026  
+**Next update:** When LCD is connected to Pi or on further pinout/power changes

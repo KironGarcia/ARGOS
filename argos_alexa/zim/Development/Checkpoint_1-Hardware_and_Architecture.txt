@@ -120,18 +120,18 @@ The SD card module is **confirmed as a required component** for the next hardwar
 * SD card (2–8 GB) gives effectively unlimited space for all .wav responses + future models.
 * ESP8266Audio supports ''AudioFileSourceSD'' natively.
 
-**SPI pinout for SD module on ESP32 (pins freed after LED removal):**
+**SPI pinout for SD module on ESP32 (D5 and D18 used by LEDs — alternate pins):**
 
 | SD Module Pin | ESP32 Pin | Notes |
 |---|---|---|
-| MOSI | D23 (GPIO 23) | Standard SPI MOSI |
-| MISO | D19 (GPIO 19) | Standard SPI MISO |
-| SCK | D18 (GPIO 18) | Standard SPI SCK — free (was red LED, now removed) |
-| CS | D5 (GPIO 5) | Chip select — free (was yellow LED, now removed) |
+| MOSI | **D23 (GPIO 23)** | SPI data out |
+| MISO | **D19 (GPIO 19)** | SPI data in |
+| SCK | **D4 (GPIO 4)** | SPI clock (free; D18 = LED) |
+| CS | **D22 (GPIO 22)** | Chip select (free; D5 = LED) |
 | VCC | 3V3 | SD module power |
 | GND | GND | Common ground |
 
-⚠️ **Verify before wiring:** GPIO 18 (D18) and GPIO 5 (D5) are free because the LEDs were removed. Confirm no other component uses these pins before connecting the SD module.
+⚠️ **Note:** GPIO 5 and 18 are in use by the LEDs. SD module uses MOSI=23, MISO=19, SCK=4, CS=**22**. In code (SPI.begin or SD.begin), set SCK=4 and CS=22.
 
 **Files to store on SD card:**
 * ''argos_identity.wav'' — ARGOS self-presentation (long, ~15–30 s)

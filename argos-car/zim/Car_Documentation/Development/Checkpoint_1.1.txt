@@ -155,7 +155,7 @@ Raspberry Pi Zero W tiene pines con **funciones especiales dedicadas:**
 || **HC-SR04 Ultrasonic Sensor** ||||||
 || TRIG | Pin 19 | GPIO 10 | Sensor trigger | ⚠️ MOSI - Funciona ahora |
 || ECHO | Pin 21 | GPIO 9 | Sensor echo | ⚠️ MISO - Funciona ahora |
-|| GND | Pin 9 | GND | Ground reference | ✅ Validado |
+|| GND | Pin 9 | GND | HC-SR04 ultrasonic (sensor GND) | ✅ Validado |
 
 **Notas:**
 * ENA/ENB movidos a Pins 37/38 para optimizar señal PWM

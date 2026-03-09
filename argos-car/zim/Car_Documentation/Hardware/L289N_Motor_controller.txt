@@ -31,7 +31,7 @@ L298N Controlador    →    Raspberry Pi Physical Pin
 ├── IN4              →    GPIO 23 (Pin 16)
 ├── ENA              →    GPIO 18 (Pin 12)
 ├── ENB              →    GPIO 10 (Pin 19)
-└── GND              →    GND (Pin 6, 9, 14, 20, 25, 30, 34, 39)
+└── GND              →    GND (Pin 6, 14 — L298N; Pin 9 reserved for HC-SR04)
 }}}
 
 ===== Basic Control Code =====

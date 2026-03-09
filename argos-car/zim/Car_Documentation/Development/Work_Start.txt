@@ -38,11 +38,12 @@ The previous configuration worked, but the 3.7V motors did not have sufficient t
 
 ==== Common Ground Connection ====
 For GPIO signals to work correctly, all systems must share the same ground reference. We will use two GND pins on the Raspberry Pi to safely distribute current:
-* **Motor GND**: 12V Battery GND → L298N GND → Raspberry Pi GND (Pin 9 and Pin 14)
+* **Motor GND**: 12V Battery GND → L298N GND → Raspberry Pi GND (Pin 6 and Pin 14)
+* **Sensor GND**: HC-SR04 ultrasonic → Raspberry Pi Pin 9 (GND) — sensor cable
 * All Raspberry Pi GND pins are internally connected
 * Using multiple pins distributes current safely
 
-**Important**: Connect the 12V battery GND to pins 9 and 14 of the Raspberry Pi to establish common ground.
+**Important**: L298N common ground: Pin 6 and Pin 14. HC-SR04 ultrasonic: GND on Pin 9.
 
 ===== Second Consideration: Currently Used Pins on Raspberry Pi =====
 
@@ -54,7 +55,8 @@ For GPIO signals to work correctly, all systems must share the same ground refer
 | L298N Motor | GPIO 27 | Pin 13 | IN2 (Motor A direction) |
 | L298N Motor | GPIO 22 | Pin 15 | IN3 (Motor B direction) |
 | L298N Motor | GPIO 23 | Pin 16 | IN4 (Motor B direction) |
-| Common Ground | GND | Pin 9, 14 | Ground reference |
+| L298N Common Ground | GND | Pin 6, 14 | Ground reference motores |
+| HC-SR04 GND | GND | Pin 9 | Ultrasonic sensor GND |
 
 **Note**: ENA and ENB are not connected yet. Jumpers are installed on L298N, allowing maximum speed without PWM control. First we will test if motors work correctly before adding speed control.
 
@@ -81,13 +83,13 @@ For GPIO signals to work correctly, all systems must share the same ground refer
 * **IN4**: GPIO 23 (Pin 16) - Motor B direction
 * **ENA**: GPIO 18 (Pin 12) - Motor A PWM (future, jumper installed for now)
 * **ENB**: GPIO 25 (Pin 22) - Motor B PWM (future, jumper installed for now)
-* **GND**: Pin 9 and Pin 14 - Common ground with 12V battery
+* **GND**: Pin 6 and Pin 14 - Common ground L298N with 12V battery
 
 ==== Presence Sensor (HC-SR04) ====
 * **TRIG**: GPIO 24 (Pin 18) - Sensor trigger
 * **ECHO**: GPIO 10 (Pin 19) - Sensor return
-* **VCC**: Powered by 5V powerbank (separate)
-* **GND**: Common ground with powerbank
+* **VCC**: 5V da Pi (Pin 2 ou 4) ou powerbank, conforme revisão
+* **GND**: Pin 9 (GND) — ultrasonic sensor cable connected directly to Pi
 
 **Note**: This sensor will be migrated to ESP32 after establishing communication between ESP32 and Raspberry Pi.
 

@@ -24,9 +24,10 @@ Soy el ingeniero de mecatrónica senior de ARGOS. Me especializo en hardware emb
 | L298N ENB  | 38         | 20         | Motor B PWM |
 | HC-SR04 TRIG | 19       | 10         | Trigger sensor |
 | HC-SR04 ECHO | 21       | 9          | Echo sensor |
-| GND        | 6, 9, 14   | GND        | Referencia común |
+| HC-SR04 GND  | 9        | GND        | Tierra del sensor (alimentado desde Pi) |
+| GND        | 6, 14   | GND        | Referencia común (L298N, etc.) |
 
-**Notas:** ENA/ENB en 37/38 (uso general). TRIG/ECHO en 19/21 (GPIO 10/9 — pueden interferir con SPI; monitorear si se usa SPI). Código de referencia en `argos-car/argos-architecture/src/menu_demo.py` y `sensor_test.py`; verificar siempre el Checkpoint más reciente antes de cambiar pines.
+**Notas:** ENA/ENB en 37/38. TRIG/ECHO en 19/21 (GPIO 10/9). HC-SR04 alimentado desde la Pi; GND en Pin 9. Dos fuentes: batería 12V motores + powerbank Pi; sin pilhas AA. Ver Checkpoint 4 en argos-car/zim/. Código de referencia en `argos-car/argos-architecture/src/menu_demo.py` y `sensor_test.py`; verificar siempre el Checkpoint más reciente antes de cambiar pines.
 
 **Checkpoints importantes:**
 - Motores originales 3,7V insuficientes → sustituidos por JGA25 12V; batería 12V dedicada; L298N alimentado solo por 12V y GND
@@ -37,7 +38,7 @@ Soy el ingeniero de mecatrónica senior de ARGOS. Me especializo en hardware emb
 ### Alexa China (argos_alexa — dispositivo IoT vulnerado)
 
 - **Dispositivo:** ESP32 Dev Module como "Alexa china" (asistente de voz barato y vulnerable).
-- **Estado:** Stage 2 — hardware validado (2026-03-06). Hardware físico montado y testado.
+- **Estado:** Stage 2 — hardware validado; OTA y pinout SD/LEDs definidos (2026-03-07). Checkpoint_1 y Checkpoint_2 en zim/Development/.
 - **Concepto del demo:** Dispositivo con vulnerabilidades (credenciales débiles, puertos abiertos); atacante lo explota y escala al control del carro; la app ARGOS detecta y bloquea el ataque.
 
 **Pinout validado (2026-03-06):**
@@ -55,12 +56,10 @@ Soy el ingeniero de mecatrónica senior de ARGOS. Me especializo en hardware emb
 | PAM8403 IN+ | D25 | 25 | DAC1 — señal de audio |
 | PAM8403 IN- | GND | — | Referencia de señal |
 | Altavoz 4 ohm 3W | L-OUT+/- | — | Salida de audio |
-| SD card CS | D5 | 5 | SPI Chip Select (libre — LED removido) |
-| SD card SCK | D18 | 18 | SPI Clock (libre — LED removido) |
-| SD card MISO | D19 | 19 | SPI MISO |
-| SD card MOSI | D23 | 23 | SPI MOSI |
+| LEDs | D5, D18 | 5, 18 | Dos amarillos (alimentación cable USB cortado) |
+| SD MOSI / MISO / SCK / CS | D23, D19, D4, D22 | 23, 19, 4, 22 | Módulo SD (D5/D18 = LEDs) |
 
-**Sin LEDs:** GPIO 5 y 18 (antes LEDs amarillo/rojo) removidos del proyecto por interferencia con el altavoz. Ahora asignados al módulo SD.
+**OTA:** Sketch `ota_wifi` en `alexa-architecture/src/ota_wifi/`. SD: SCK=D4, CS=D22.
 
 **Sketches de test en `alexa-architecture/src/`:**
 - `1test/1test.ino` — test combinado (menú mic + parlante + LEDs)
@@ -74,7 +73,7 @@ ESP32 detecta keyword localmente con Edge Impulse (~200 ms, 10 keywords en espa�
 
 **Modulo SD requerido:** almacena todos los .wav de respuesta (incluidos textos largos y música). Pines libres gracias a la remoción de los LEDs.
 
-**Proximo paso:** conectar módulo SD, instalar ESP8266Audio, probar reproducción .wav desde SD por el altavoz.
+**Próximo paso:** integrar en un solo sketch SD (SCK=4, CS=22), reproducción .wav desde `audio/`, luego entrenar modelo con frases. Ver Checkpoint_2.
 
 **Flujo del ataque demo (visión):** Usuario tiene "Alexa china" (ESP32) → atacante explota vulnerabilidades del dispositivo → obtiene capacidad de enviar comandos hacia el carro (RPi) → ARGOS detecta anomalía y responde (bloqueo, freno de emergencia, etc.). Este flujo es el MVP que demuestra el problema que ARGOS resuelve.
 
@@ -83,7 +82,7 @@ ESP32 detecta keyword localmente con Edge Impulse (~200 ms, 10 keywords en espa�
 ## Stack de software embebido
 
 - **Carro (argos-car):** Python 3 en Raspberry Pi Zero W. Librería: RPi.GPIO (BCM). Control de motores: salidas digitales para IN1-IN4, PWM en ENA/ENB (1 kHz). Scripts en `argos-car/argos-architecture/src/`: `menu_demo.py`, `motor-di.py`, `sensor_test.py`, `smart_car_system.py`, `blinky.py`
-- **Alexa (argos_alexa):** ESP32, Arduino IDE (C++). Código en `alexa-architecture/src/`. Sketches de test funcionales. Arquitectura: Edge Impulse (keywords) + WiFi + Flask RPi + ESP8266Audio (DAC). Módulo SD para almacenamiento de .wav.
+- **Alexa (argos_alexa):** ESP32, Arduino IDE (C++). Código en `alexa-architecture/src/`; OTA en `ota_wifi/`. LEDs D5/D18; SD SCK=4, CS=22. Edge Impulse (frases, 10–12 keywords) + WiFi + Flask RPi + ESP8266Audio (DAC). Audios en `audio/`.
 - **Comunicación Alexa-Carro:** WiFi local (HTTP POST ESP32 → Flask RPi). Sin cables entre Alexa y carro. RPi actúa como cerebro central: recibe intents de voz y ejecuta comandos en el carro.
 
 ## Reglas de trabajo en hardware
